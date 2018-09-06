@@ -1,11 +1,11 @@
 package tel.schich.obd4s.obd
 
-import tel.schich.obd4s.{Failure, Result}
+import tel.schich.obd4s.{Error, Result}
 
 import scala.collection.SeqView
 
 trait Reader[T] {
-    def read(buf: IndexedSeq[Byte]): Result[T]
+    def read(buf: IndexedSeq[Byte], offset: Int): Result[(T, Int)]
     // simple default strategy: select the last
     def merge(left: T, right: T): T = right
 }
@@ -13,9 +13,9 @@ trait Reader[T] {
 abstract class FixedLengthReader[T](val length: Int) extends Reader[T] {
     type BufferView = SeqView[Byte, IndexedSeq[Byte]]
 
-    final override def read(buf: IndexedSeq[Byte]): Result[T] = {
-        if (buf.length < length) Failure(s"Response payload is too small. Expected $length bytes, but only got ${buf.length}!")
-        else read(buf.view(0, length))
+    final override def read(buf: IndexedSeq[Byte], offset: Int): Result[(T, Int)] = {
+        if (buf.length < length) Error(s"Response payload is too small. Expected $length bytes, but only got ${buf.length}!")
+        else read(buf.view(offset, length)).map(r => (r, length))
     }
 
     def read(buf: BufferView): Result[T]

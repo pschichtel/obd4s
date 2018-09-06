@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit.SECONDS
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.obd4s.obd.DistanceReader.DistanceUnit
 import tel.schich.obd4s.obd.FuelSystemStatus.Unavailable
-import tel.schich.obd4s.{Failure, Ok, Result}
+import tel.schich.obd4s.{Error, Ok, Result}
 
 import scala.concurrent.duration.TimeUnit
 
@@ -89,7 +89,7 @@ object FuelTypeReader extends SingleByteReader[FuelType] {
 
     override def read(a: Int): Result[FuelType] = {
         a match {
-            case n if n <= 0 => Failure(s"Invalid fuel type id $n!")
+            case n if n <= 0 => Error(s"Invalid fuel type id $n!")
             case n if KnownFuels.isDefinedAt(n) => Ok(FuelType(n, KnownFuels(n)))
             case n => Ok(FuelType(n, "Unknown"))
         }
@@ -136,7 +136,7 @@ object FuelSystemStatusReader extends TwoByteReader[FuelSystemStatus] {
 
     override def read(a: Int, b: Int): Result[FuelSystemStatus] = {
         toStatus(a) match {
-            case Unavailable => Failure(s"Fuel system 1 returned an undefined response: $a")
+            case Unavailable => Error(s"Fuel system 1 returned an undefined response: $a")
             case statusA => Ok(FuelSystemStatus(statusA, toStatus(b)))
         }
 
@@ -170,7 +170,7 @@ case class OxygenSensorFuelVoltageTrim(voltage: Double, fuelTrim: Double) extend
 }
 object OxygenSensorFuelVoltageReader extends TwoByteReader[OxygenSensorFuelVoltageTrim] {
     override def read(a: Int, b: Int): Result[OxygenSensorFuelVoltageTrim] = {
-        if (b == 255) Failure(s"Oxygen sensor response signaled no support: $b")
+        if (b == 255) Error(s"Oxygen sensor response signaled no support: $b")
         else Ok(OxygenSensorFuelVoltageTrim(a / 200.0, 100.0/128.0 * b - 100.0))
     }
 }
