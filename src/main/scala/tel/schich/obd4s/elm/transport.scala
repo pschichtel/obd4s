@@ -123,7 +123,7 @@ class BluetoothRfcommElmTransport(address: String, channel: Int = 1) extends Elm
     override lazy val output: OutputStream = connection.openDataOutputStream()
 }
 
-class BluetoothL2CAPTranport(address: String, channel: Int) extends ElmTransport {
+class BluetoothL2CAPElmTranport(address: String, channel: Int) extends ElmTransport {
     if ("localhost".equalsIgnoreCase(address)) {
         throw new IllegalArgumentException(s"$address would result in a server socket!")
     }
