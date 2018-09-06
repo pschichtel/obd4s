@@ -23,7 +23,7 @@ object ObdUtil {
         val reason = buf(1) match {
             case 0x10 => "General reject"
             case 0x11 => "Service or Subfunction not supported (in active Session)"
-            case 0x11 => "Service or Subfunction not supported (in active Session)"
+            case 0x12 => "Service or Subfunction not supported (in active Session)"
             case 0x7E => "Service or Subfunction not supported (in active Session)"
             case 0x7F => "Service or Subfunction not supported (in active Session)"
             case 0x13 => "Message length or format incorrect"
@@ -35,6 +35,7 @@ object ObdUtil {
             case 0x33 => "Security access denied"
             case 0x35 => "Invalid key"
             case 0x36 => "Exceed attempts"
+            case _ => "Unknown reason"
         }
         Error(reason)
     }

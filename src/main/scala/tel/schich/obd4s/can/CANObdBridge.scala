@@ -3,9 +3,10 @@ package tel.schich.obd4s.can
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.isotp.AggregatingFrameHandler.aggregateFrames
 import tel.schich.javacan.isotp.{ISOTPBroker, ISOTPChannel}
-import tel.schich.obd4s.obd.{ModeId, Reader}
-import tel.schich.obd4s.{ObdBridge, ObdUtil, Result}
+import tel.schich.obd4s.obd.{ModeId, Reader, Response}
+import tel.schich.obd4s._
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Success
@@ -14,7 +15,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
 
     private val channel = broker.createChannel(ecuAddress, aggregateFrames(this.handleResponse))
 
-    private val requestQueue: mutable.Queue[Request[_]] = mutable.Queue()
+    private val requestQueue: mutable.Queue[PendingRequest] = mutable.Queue()
 
     override def executeRequest[A](mode: ModeId, pid: Int, reader: Reader[A]): Future[Result[A]] = {
         execAll(mode, Seq(pid)).map { result =>
@@ -90,18 +91,43 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
         }
     }
 
+    override def executeRequest(mode: ModeId, reqs: Seq[Req[_ <: Response]]): Future[Result[Seq[Response]]] = {
+
+        @tailrec
+        def parseResponse(buf: Array[Byte], offset: Int, readers: Seq[Reader[_ <: Response]], result: Result[Seq[Response]]): Result[Seq[Response]] = {
+            if (readers.isEmpty) result
+            else if (offset > buf.length) Error("Response too short!")
+            else {
+                result match {
+                    case Ok(responses) =>
+                        val r = readers.head
+                        r.read(buf, offset) match {
+                            case Ok((response, byteRead)) =>
+                                parseResponse(buf, offset + byteRead, readers.tail, Ok(responses :+ response))
+                            case e @ Error(reason) => Error(reason)
+                        }
+                    case e @ Error(_) => e
+                }
+            }
+        }
+
+        execAll(mode, reqs.map(_._1)).map { result =>
+            result.flatMap { buf => parseResponse(buf, mode.length, reqs.map(_._2), Ok(Seq.empty)) }
+        }
+    }
+
     private def execAll(mode: ModeId, pids: Seq[Int]): Future[Result[Array[Byte]]] = {
 
         val sidByte = (mode.id & 0xFF).toByte
         val msg = (mode.id +: pids).map(p => (p & 0xFF).toByte).toArray
 
         val promise = Promise[Result[Array[Byte]]]
-        enqueue(Request(sidByte, msg, promise))
+        enqueue(PendingRequest(sidByte, msg, promise))
 
         promise.future
     }
 
-    private def enqueue(req: Request[_]): Unit = synchronized {
+    private def enqueue(req: PendingRequest): Unit = synchronized {
         val wasEmpty = requestQueue.isEmpty
         requestQueue.enqueue(req)
         if (wasEmpty) {
@@ -126,5 +152,5 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
         req.promise.complete(Success(result))
     }
 
-    private case class Request[A](sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])
+    private case class PendingRequest(sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])
 }

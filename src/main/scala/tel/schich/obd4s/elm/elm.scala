@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets.US_ASCII
 import ElmCommands.CANReceiveFilter
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.obd4s.{Error, ObdBridge, Ok, Result}
-import tel.schich.obd4s.obd.{ModeId, Reader}
+import tel.schich.obd4s.obd.{ModeId, Reader, Response}
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -120,6 +120,8 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
     override def executeRequest[A, B, C, D, E](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B]), c: (Int, Reader[C]), d: (Int, Reader[D]), e: (Int, Reader[E])): Future[Result[(A, B, C, D, E)]] = ???
 
     override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B]), c: (Int, Reader[C]), d: (Int, Reader[D]), e: (Int, Reader[E]), f: (Int, Reader[F])): Future[Result[(A, B, C, D, E, F)]] = ???
+
+    override def executeRequest(mode: ModeId, reqs: Seq[Req[_ <: Response]]): Future[Result[Seq[Response]]] = ???
 
     private def run(transport: ElmTransport, cmd: String, readDelay: Long = 0): Vector[String] = {
         ElmTransport.deplete(transport)
