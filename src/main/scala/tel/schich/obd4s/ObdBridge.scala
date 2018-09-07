@@ -53,7 +53,7 @@ trait ObdBridge extends StrictLogging {
         executeRequest(a.mode.id, a.tupled, b.tupled, c.tupled, d.tupled, e.tupled)
     def executeReuqest[M <: Mode, A, B, C, D, E, F](a: Request[A, M], b: Request[B, M], c: Request[C, M], d: Request[D, M], e: Request[E, M], f: Request[F, M]): Future[Result[(A, B, C, D, E, F)]] =
         executeRequest(a.mode.id, a.tupled, b.tupled, c.tupled, d.tupled, e.tupled, f.tupled)
-    def executeRequest[M <: Mode](reqs: Seq[Request[_ <: Response, M]]): Future[Result[Seq[Response]]] =
+    def executeRequest[M <: Mode, A](reqs: Seq[Request[A, M]]): Future[Result[Seq[A]]] =
         if (reqs.isEmpty) Future.successful(Error("No requests given!"))
         else executeRequest(reqs.head.mode.id, reqs.map(_.tupled))
 
@@ -64,5 +64,5 @@ trait ObdBridge extends StrictLogging {
     def executeRequest[A, B, C, D](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D]): Future[Result[(A, B, C, D)]]
     def executeRequest[A, B, C, D, E](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D], e: Req[E]): Future[Result[(A, B, C, D, E)]]
     def executeRequest[A, B, C, D, E, F](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D], e: Req[E], f: Req[F]): Future[Result[(A, B, C, D, E, F)]]
-    def executeRequest(mode: ModeId, reqs: Seq[Req[_ <: Response]]): Future[Result[Seq[Response]]]
+    def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]]
 }

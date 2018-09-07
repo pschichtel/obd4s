@@ -91,10 +91,10 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
         }
     }
 
-    override def executeRequest(mode: ModeId, reqs: Seq[Req[_ <: Response]]): Future[Result[Seq[Response]]] = {
+    override def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]] = {
 
         @tailrec
-        def parseResponse(buf: Array[Byte], offset: Int, readers: Seq[Reader[_ <: Response]], result: Result[Seq[Response]]): Result[Seq[Response]] = {
+        def parseResponse(buf: Array[Byte], offset: Int, readers: Seq[Reader[A]], result: Result[Seq[A]]): Result[Seq[A]] = {
             if (readers.isEmpty) result
             else if (offset > buf.length) Error("Response too short!")
             else {
@@ -104,7 +104,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
                         r.read(buf, offset) match {
                             case Ok((response, byteRead)) =>
                                 parseResponse(buf, offset + byteRead, readers.tail, Ok(responses :+ response))
-                            case e @ Error(reason) => Error(reason)
+                            case Error(reason) => Error(reason)
                         }
                     case e @ Error(_) => e
                 }

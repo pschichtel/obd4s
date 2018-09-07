@@ -121,7 +121,7 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
 
     override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B]), c: (Int, Reader[C]), d: (Int, Reader[D]), e: (Int, Reader[E]), f: (Int, Reader[F])): Future[Result[(A, B, C, D, E, F)]] = ???
 
-    override def executeRequest(mode: ModeId, reqs: Seq[Req[_ <: Response]]): Future[Result[Seq[Response]]] = ???
+    override def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]] = ???
 
     private def run(transport: ElmTransport, cmd: String, readDelay: Long = 0): Vector[String] = {
         ElmTransport.deplete(transport)
