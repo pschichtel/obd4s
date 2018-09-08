@@ -1,6 +1,6 @@
 package tel.schich.obd4s.obd
 
-import tel.schich.obd4s.{Error, Result}
+import tel.schich.obd4s.{Error, InternalCauses, Result}
 
 import scala.collection.SeqView
 
@@ -14,7 +14,7 @@ abstract class FixedLengthReader[T](val length: Int) extends Reader[T] {
     type BufferView = SeqView[Byte, IndexedSeq[Byte]]
 
     final override def read(buf: IndexedSeq[Byte], offset: Int): Result[(T, Int)] = {
-        if (buf.length < length) Error(s"Response payload is too small. Expected $length bytes, but only got ${buf.length}!")
+        if (buf.length < length) Error(InternalCauses.ResponseTooShort)
         else read(buf.view(offset, length)).map(r => (r, length))
     }
 

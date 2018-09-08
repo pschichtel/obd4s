@@ -3,10 +3,11 @@ package tel.schich.obd4s.elm
 import java.io.InputStream
 import java.nio.charset.StandardCharsets.US_ASCII
 
-import ElmCommands.CANReceiveFilter
 import com.typesafe.scalalogging.StrictLogging
-import tel.schich.obd4s.{Error, ObdBridge, Ok, Result}
-import tel.schich.obd4s.obd.{ModeId, Reader, Response}
+import tel.schich.obd4s.InternalCauses.{ResponseTooShort, UnknownResponse}
+import tel.schich.obd4s._
+import tel.schich.obd4s.elm.ElmCommands.CANReceiveFilter
+import tel.schich.obd4s.obd.{ModeId, Reader}
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -55,7 +56,7 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         val plainHex = line.filterNot(_.isWhitespace)
         val data = (plainHex.indices by 2).map(i => java.lang.Short.parseShort("" + plainHex(i) + plainHex(i + 1), 16).toByte).toArray
         if (data.length >= 2) Ok((data(0) & 0xFF, data(1) & 0xFF, data.view(2, data.length)))
-        else Error("The received response was too short! At least 2 bytes are required")
+        else Error(ResponseTooShort)
     }
 
     private def parseElmResponse(lines: Vector[String], mode: ModeId, pid: Int): Result[Vector[(String, String)]] = {
@@ -63,12 +64,12 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         val responsePrefix = obdRequest(expectedResponseMode, pid)
 
         lines.map(_.toLowerCase) match {
-            case Vector() => Error("No response received")
-            case Vector("?") => Error("Unknown or invalid command")
-            case Vector("no data") => Error("No data returned for request")
+            case Vector() => Error(ElmCauses.NoResponse)
+            case Vector("?") => Error(ElmCauses.UnknownOrInvalidCommand)
+            case Vector("no data") => Error(ElmCauses.NoData)
             case _ if lines.forall(_.length >= 2) =>
                 Ok(lines.map(l => ("", l)))
-            case _ => Error("ELM response could not be handled")
+            case _ => Error(UnknownResponse)
 
         }
     }
@@ -79,7 +80,7 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
                 if (responseMode == expectedMode && responsePid == pid) {
                     reader.read(data, 0).map(_._1)
                 } else {
-                    Error(s"The response does not match the request: mode($expectedMode=$responseMode) pid($pid=$responsePid)")
+                    Error(UnknownResponse)
                 }
         }
     }

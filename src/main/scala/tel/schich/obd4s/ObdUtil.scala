@@ -9,10 +9,10 @@ object ObdUtil {
     def checkResponse(requestSid: Byte, data: Array[Byte]): Result[Array[Byte]] =
         // there must be at least the response code, otherwise this is very weird.
         if (isMatchingResponse(requestSid, data)) Ok(data)
-        else if (isPositiveResponse(data)) Error(Causes.WrongSid)
+        else if (isPositiveResponse(data)) Error(InternalCauses.WrongSid)
         else getErrorCause(data) match {
             case Some(cause) => Error(cause)
-            case _ => Error(Causes.UnknownResponse)
+            case _ => Error(InternalCauses.UnknownResponse)
         }
 
     def isMatchingResponse(requestSid: Byte, data: Array[Byte]): Boolean =
@@ -26,5 +26,5 @@ object ObdUtil {
 
     def getErrorCause(data: Array[Byte]): Option[Cause] =
         if (!isErrorResponse(data) || data.length < 2) None
-        else Some(Causes.lookupByCode.getOrElse(data(1), Causes.UnknownCause))
+        else Some(ObdCauses.lookupByCode.getOrElse(data(1), InternalCauses.UnknownCause))
 }
