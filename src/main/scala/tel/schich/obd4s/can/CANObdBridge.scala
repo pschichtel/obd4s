@@ -3,8 +3,10 @@ package tel.schich.obd4s.can
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.isotp.AggregatingFrameHandler.aggregateFrames
 import tel.schich.javacan.isotp.{ISOTPBroker, ISOTPChannel}
-import tel.schich.obd4s.obd.{ModeId, Reader, Response}
+import tel.schich.obd4s.Causes.ResponseTooShort
+import tel.schich.obd4s.ObdUtil.{getErrorCause, isMatchingResponse}
 import tel.schich.obd4s._
+import tel.schich.obd4s.obd.{ModeId, Reader}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -31,7 +33,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
             result.flatMap { buf =>
                 for {
                     (ar, oa) <- a._2.read(buf, mode.length)
-                    (br, _) <- b._2.read(buf, oa)
+                    (br, _ ) <- b._2.read(buf, oa)
                 } yield (ar, br)
             }
         }
@@ -43,7 +45,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
                 for {
                     (ar, oa) <- a._2.read(buf, mode.length)
                     (br, ob) <- b._2.read(buf, oa)
-                    (cr, _) <- c._2.read(buf, ob)
+                    (cr, _ ) <- c._2.read(buf, ob)
                 } yield (ar, br, cr)
             }
         }
@@ -56,7 +58,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
                     (ar, oa) <- a._2.read(buf, mode.length)
                     (br, ob) <- b._2.read(buf, oa)
                     (cr, oc) <- c._2.read(buf, ob)
-                    (dr, _) <- d._2.read(buf, oc)
+                    (dr, _ ) <- d._2.read(buf, oc)
                 } yield (ar, br, cr, dr)
             }
         }
@@ -70,7 +72,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
                     (br, ob) <- b._2.read(buf, oa)
                     (cr, oc) <- c._2.read(buf, ob)
                     (dr, od) <- d._2.read(buf, oc)
-                    (er, _) <- e._2.read(buf, od)
+                    (er, _ ) <- e._2.read(buf, od)
                 } yield (ar, br, cr, dr, er)
             }
         }
@@ -85,7 +87,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
                     (cr, oc) <- c._2.read(buf, ob)
                     (dr, od) <- d._2.read(buf, oc)
                     (er, oe) <- e._2.read(buf, od)
-                    (fr, _) <- f._2.read(buf, oe)
+                    (fr, _ ) <- f._2.read(buf, oe)
                 } yield (ar, br, cr, dr, er, fr)
             }
         }
@@ -96,7 +98,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
         @tailrec
         def parseResponse(buf: Array[Byte], offset: Int, readers: Seq[Reader[A]], result: Result[Seq[A]]): Result[Seq[A]] = {
             if (readers.isEmpty) result
-            else if (offset > buf.length) Error("Response too short!")
+            else if (offset > buf.length) Error(ResponseTooShort)
             else {
                 result match {
                     case Ok(responses) =>
@@ -147,9 +149,15 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
             sendNext()
             current
         }
-        val result = ObdUtil.checkResponse(req.sid, req.msg)
 
-        req.promise.complete(Success(result))
+        if (isMatchingResponse(req.sid, message)) req.promise.complete(Success(Ok(message)))
+        else getErrorCause(message) match {
+            case Some(cause) =>
+                // yep, it's an error
+                req.promise.complete(Success(Error(cause)))
+            case _ =>
+            // don't know what it is, but also don't care
+        }
     }
 
     private case class PendingRequest(sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])

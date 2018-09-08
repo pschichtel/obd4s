@@ -9,7 +9,7 @@ import scala.concurrent.{ExecutionContext, Future}
 object ObdBridge {
     val SupportRangeSize: Int = 0x20
     val MaximumPid: Int = 255
-    val SuccessfulResponseBase: Byte = 0x40
+    val PositiveResponseBase: Byte = 0x40
 }
 
 trait ObdBridge extends StrictLogging {
@@ -54,7 +54,7 @@ trait ObdBridge extends StrictLogging {
     def executeReuqest[M <: Mode, A, B, C, D, E, F](a: Request[A, M], b: Request[B, M], c: Request[C, M], d: Request[D, M], e: Request[E, M], f: Request[F, M]): Future[Result[(A, B, C, D, E, F)]] =
         executeRequest(a.mode.id, a.tupled, b.tupled, c.tupled, d.tupled, e.tupled, f.tupled)
     def executeRequest[M <: Mode, A](reqs: Seq[Request[A, M]]): Future[Result[Seq[A]]] =
-        if (reqs.isEmpty) Future.successful(Error("No requests given!"))
+        if (reqs.isEmpty) Future.failed(new IllegalArgumentException("No requests given!"))
         else executeRequest(reqs.head.mode.id, reqs.map(_.tupled))
 
     def executeRequest[A](mode: ModeId, pid: Int, reader: Reader[A]): Future[Result[A]]
