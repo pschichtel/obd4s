@@ -1,7 +1,7 @@
 package tel.schich.obd4s.can
 
 import java.util.concurrent.TimeUnit.{MILLISECONDS, SECONDS}
-import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture}
 
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.isotp.AggregatingFrameHandler.aggregateFrames
@@ -200,4 +200,9 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
     }
 
     private case class PendingRequest(sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])
+}
+
+object CANObdBridge {
+    val EffPriority = 0x18
+    val EffTestEquipmentAddress = 0xF1
 }

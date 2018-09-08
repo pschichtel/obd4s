@@ -2,9 +2,8 @@ package tel.schich.obd4s
 
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.obd4s.obd._
-import tel.schich.obd4s.obd.StandardModes.CurrentData
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 object ObdBridge {
     val SupportRangeSize: Int = 0x20
@@ -15,31 +14,6 @@ object ObdBridge {
 trait ObdBridge extends StrictLogging {
 
     type Req[T] = (Int, Reader[T])
-
-    def detectSupport()(implicit ec: ExecutionContext): Future[Int => Boolean] = {
-
-        def scanSupport(pid: Int, currentSet: Vector[Boolean]): Future[Vector[Boolean]] = {
-            if (currentSet.nonEmpty && !currentSet.last) Future.successful(currentSet)
-            else if (pid > ObdBridge.MaximumPid) Future.successful(currentSet)
-            else executeRequest[BitSet](CurrentData.id, pid, PidSupportReader) flatMap {
-                case Ok(bitSet) => scanSupport(pid + ObdBridge.SupportRangeSize, currentSet ++ bitSet.set)
-                case Error(reason) =>
-                    logger.error(s"Support detection failed: $reason")
-                    Future.successful(currentSet)
-            }
-        }
-
-        scanSupport(CurrentDataRequests.Support01To20.pid, Vector(true)) map { supportVector =>
-            val support = supportVector.applyOrElse(_: Int, (_: Int) => false)
-            CurrentDataRequests.values.foreach {
-                case r if r.isSupported(support) =>
-                    logger.info(s"Supported: ${r.name}")
-                case r =>
-                    logger.info(s"Unsupported: ${r.name} (PID=${r.pid})")
-            }
-            support
-        }
-    }
 
     def executeRequest[M <: Mode, A](a: Request[A, M]): Future[Result[A]] =
         executeRequest(a.mode.id, a.pid, a.reader)
