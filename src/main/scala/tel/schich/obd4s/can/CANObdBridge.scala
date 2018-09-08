@@ -196,7 +196,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
     private def timeoutInflightRequest(): Unit = synchronized {
         val current = requestQueue.dequeue()
         sendNext()
-        current.promise.success(InternalCauses.Timeout)
+        current.promise.success(Error(InternalCauses.Timeout))
     }
 
     private case class PendingRequest(sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])

@@ -101,7 +101,7 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
     override def executeRequest(mode: ModeId): Future[Unit] = {
         val request = obdRequest(mode.id, -1)
         run(transport, request)
-        Future.successful()
+        Future.successful(())
     }
 
     override def executeRequest[T](mode: ModeId, pid: Int, reader: Reader[T]): Future[Result[T]] = {
