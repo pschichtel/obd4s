@@ -1,5 +1,6 @@
 package tel.schich.obd4s.obd
 
+import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit.SECONDS
 
 import com.typesafe.scalalogging.StrictLogging
@@ -394,4 +395,23 @@ case class EngineTorqueData(idle: Double, point1: Double, point2: Double, point3
 object EngineTorqueDataReader extends FiveByteReader[EngineTorqueData] {
     override def read(a: Int, b: Int, c: Int, d: Int, e: Int): Result[EngineTorqueData] =
         Ok(EngineTorqueData(a / 255.0, b / 255.0, c / 255.0, d / 255.0, e / 255.0))
+}
+
+object ByteReader extends SingleByteReader[Int] {
+    override def read(a: Int): Result[Int] = Ok(a)
+}
+
+object ShortReader extends SingleShortReader[Int] {
+    override def read(a: Int): Result[Int] = Ok(a)
+}
+
+object IntReader extends SingleIntReader[Int] {
+    override def read(a: Int): Result[Int] = Ok(a)
+}
+
+case class StringReader(charset: Charset) extends Reader[String] {
+    override def read(buf: IndexedSeq[Byte], offset: Int): Result[(String, Int)] = {
+        val len = buf.length - offset
+        Ok((new String(buf.toArray, offset, len, charset), len))
+    }
 }

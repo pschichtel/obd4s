@@ -3,13 +3,13 @@ package tel.schich.obd4s.elm
 import java.io._
 import java.net.{InetAddress, Socket}
 
+import com.intel.bluetooth.BluetoothConsts.{PROTOCOL_SCHEME_L2CAP, PROTOCOL_SCHEME_RFCOMM, RFCOMM_CHANNEL_MAX, RFCOMM_CHANNEL_MIN}
+import com.typesafe.scalalogging.StrictLogging
 import javax.bluetooth.L2CAPConnection
 import javax.microedition.io.Connector.READ_WRITE
 import javax.microedition.io.{Connector, StreamConnection}
-import com.intel.bluetooth.BluetoothConsts.{PROTOCOL_SCHEME_L2CAP, PROTOCOL_SCHEME_RFCOMM, RFCOMM_CHANNEL_MAX, RFCOMM_CHANNEL_MIN}
-import com.typesafe.scalalogging.StrictLogging
 import jssc.SerialPort
-import tel.schich.obd4s.obd.ModeId
+import tel.schich.obd4s.ObdBridge
 
 import scala.annotation.tailrec
 import scala.util.Random
@@ -212,7 +212,7 @@ class DiscardingOutputRandomInputElmTransport(readLatency: Long) extends ElmTran
         }
 
         private def readObd(): Int = {
-            val mode = f"${lastMode + ModeId.StandardResponseOffset}%02X"
+            val mode = f"${lastMode + ObdBridge.PositiveResponseBase}%02X"
             val pid = f"$lastPid%02X"
             readState match {
                 case 1 =>

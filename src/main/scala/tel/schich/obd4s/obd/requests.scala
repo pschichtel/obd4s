@@ -1,13 +1,14 @@
 package tel.schich.obd4s.obd
 
+import java.nio.charset.StandardCharsets.US_ASCII
 import java.util.concurrent.TimeUnit.{MINUTES, SECONDS}
 
 import enumeratum.{Enum, EnumEntry}
-import tel.schich.obd4s.obd.StandardModes.CurrentData
+import tel.schich.obd4s.obd.StandardModes.{CurrentData, VehicleInfo}
 
 sealed abstract class PredefinedRequest[T, M <: Mode](mode: M, pid: Int, reader: Reader[T]) extends Request(mode, pid, reader) with EnumEntry {}
 
-object ObdRequests extends Enum[PredefinedRequest[_ <: Response, _ <: Mode]] {
+object CurrentDataRequests extends Enum[PredefinedRequest[_ <: Response, CurrentData.type]] {
     case object Support01To20                        extends PredefinedRequest(CurrentData, 0x00, PidSupportReader)
     case object FuelSystemStatus                     extends PredefinedRequest(CurrentData, 0x03, FuelSystemStatusReader)
     case object EngineLoad                           extends PredefinedRequest(CurrentData, 0x04, EngineLoadReader)
@@ -107,4 +108,19 @@ object ObdRequests extends Enum[PredefinedRequest[_ <: Response, _ <: Mode]] {
     val values = findValues
 
     lazy val reverse: Map[Int, PredefinedRequest[_ <: Response, _ <: Mode]] = values.map(v => (v.pid, v)).toMap
+}
+
+object VehicleInfoRequests extends Enum[PredefinedRequest[_, VehicleInfo.type]] {
+    case object Support01To20         extends PredefinedRequest(VehicleInfo, 0x00, PidSupportReader)
+    case object VehicleIdMessageCount extends PredefinedRequest(VehicleInfo, 0x01, ByteReader)
+    case object VehicleId             extends PredefinedRequest(VehicleInfo, 0x02, StringReader(US_ASCII))
+    case object EcuNameMessageCount   extends PredefinedRequest(VehicleInfo, 0x09, ByteReader)
+    case object EcuName               extends PredefinedRequest(VehicleInfo, 0x0A, StringReader(US_ASCII))
+
+    override val values = findValues
+}
+
+object ClearTroubleCodeRequests extends Enum[PredefinedRequest[_ , VehicleInfo.type]] {
+
+    override val values = findValues
 }

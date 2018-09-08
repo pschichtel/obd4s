@@ -29,9 +29,9 @@ trait ObdBridge extends StrictLogging {
             }
         }
 
-        scanSupport(ObdRequests.Support01To20.pid, Vector(true)) map { supportVector =>
+        scanSupport(CurrentDataRequests.Support01To20.pid, Vector(true)) map { supportVector =>
             val support = supportVector.applyOrElse(_: Int, (_: Int) => false)
-            ObdRequests.values.foreach {
+            CurrentDataRequests.values.foreach {
                 case r if r.isSupported(support) =>
                     logger.info(s"Supported: ${r.name}")
                 case r =>
@@ -57,6 +57,7 @@ trait ObdBridge extends StrictLogging {
         if (reqs.isEmpty) Future.failed(new IllegalArgumentException("No requests given!"))
         else executeRequest(reqs.head.mode.id, reqs.map(_.tupled))
 
+    def executeRequest(mode: ModeId): Future[Unit]
     def executeRequest[A](mode: ModeId, pid: Int, reader: Reader[A]): Future[Result[A]]
     def executeRequest[A](mode: ModeId, a: Req[A]): Future[Result[A]] = executeRequest(mode, a._1, a._2)
     def executeRequest[A, B](mode: ModeId, a: Req[A], b: Req[B]): Future[Result[(A, B)]]

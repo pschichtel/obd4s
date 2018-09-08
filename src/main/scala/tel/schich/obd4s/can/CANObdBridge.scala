@@ -1,5 +1,8 @@
 package tel.schich.obd4s.can
 
+import java.util.concurrent.TimeUnit.{MILLISECONDS, SECONDS}
+import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.isotp.AggregatingFrameHandler.aggregateFrames
 import tel.schich.javacan.isotp.{ISOTPBroker, ISOTPChannel}
@@ -10,14 +13,22 @@ import tel.schich.obd4s.obd.{ModeId, Reader}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.Success
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 
-class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
+class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
 
-    private val channel = broker.createChannel(ecuAddress, aggregateFrames(this.handleResponse))
+    private val channel = broker.createChannel(ecuAddress, aggregateFrames(this.handleResponse, this.handleIsotpTimeout))
 
     private val requestQueue: mutable.Queue[PendingRequest] = mutable.Queue()
+
+    private val scheduledExecutorService: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+
+    private var inflightTimeout: ScheduledFuture[_] = _
+
+    override def executeRequest(mode: ModeId): Future[Unit] = {
+        execAll(mode, Nil).map(_ => ())
+    }
 
     override def executeRequest[A](mode: ModeId, pid: Int, reader: Reader[A]): Future[Result[A]] = {
         execAll(mode, Seq(pid)).map { result =>
@@ -137,27 +148,55 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int)(implicit ec: ExecutionC
         }
     }
 
+    private def cancelTimeout(): Unit = {
+        if (inflightTimeout != null) {
+            inflightTimeout.cancel(false)
+            inflightTimeout = null
+        }
+    }
+
     private def sendNext(): Unit = synchronized {
         if (requestQueue.nonEmpty) {
             channel.send(requestQueue.head.msg)
+            cancelTimeout()
+            inflightTimeout = scheduledExecutorService.schedule((timeoutInflightRequest _).asInstanceOf[Runnable], timeout.toMillis, MILLISECONDS)
         }
     }
 
     private def handleResponse(ch: ISOTPChannel, source: Int, message: Array[Byte]): Unit = {
-        val req = synchronized {
-            val current = requestQueue.dequeue()
+        def consume(): Unit = {
+            requestQueue.dequeue()
+            cancelTimeout()
             sendNext()
-            current
         }
 
-        if (isMatchingResponse(req.sid, message)) req.promise.complete(Success(Ok(message)))
-        else getErrorCause(message) match {
-            case Some(cause) =>
-                // yep, it's an error
-                req.promise.complete(Success(Error(cause)))
-            case _ =>
-            // don't know what it is, but also don't care
+        synchronized {
+            val req = requestQueue.head
+            if (isMatchingResponse(req.sid, message)) {
+                req.promise.success(Ok(message))
+                consume()
+            }  else getErrorCause(message) match {
+                case Some(cause) =>
+                    // yep, it's an error
+                    req.promise.success(Error(cause))
+                    consume()
+                case _ =>
+                // don't know what it is, but also don't care
+            }
         }
+
+    }
+
+    private def handleIsotpTimeout(source: Int): Unit = synchronized {
+        val current = requestQueue.dequeue()
+        sendNext()
+        current.promise.failure(new TimeoutException)
+    }
+
+    private def timeoutInflightRequest(): Unit = synchronized {
+        val current = requestQueue.dequeue()
+        sendNext()
+        current.promise.success(InternalCauses.Timeout)
     }
 
     private case class PendingRequest(sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])

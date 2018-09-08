@@ -58,8 +58,9 @@ object InternalCauses extends Enum[Cause] with Causes {
     object ResponseTooShort extends Cause(2, "Filter did not apply!")
     object WrongSid extends Cause(3, "Successful response, but for the wrong SID!")
     object UnknownResponse extends Cause(4, "ECU returned an unknown response!")
+    object Timeout extends Cause(5, "Request timed out!")
 
-    override def values = findValues
+    override val values = findValues
 }
 
 object ObdCauses extends Enum[Cause] with Causes {
@@ -81,7 +82,7 @@ object ObdCauses extends Enum[Cause] with Causes {
     object ServiceOrSubfunctionNotSupportedC extends Cause(0x7E, ServiceOrSubfunctionNotSupported)
     object ServiceOrSubfunctionNotSupportedD extends Cause(0x7F, ServiceOrSubfunctionNotSupported)
 
-    override def values = findValues
+    override val values = findValues
 }
 
 object ElmCauses extends Enum[Cause] with Causes {
@@ -89,6 +90,6 @@ object ElmCauses extends Enum[Cause] with Causes {
     object NoResponse extends Cause(2, "No response received")
     object UnknownOrInvalidCommand extends Cause(3, "Unknown or invalid command")
 
-    override def values = findValues
+    override val values = findValues
 }
 

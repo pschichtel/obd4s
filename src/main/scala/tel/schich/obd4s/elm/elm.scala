@@ -87,7 +87,9 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
 
     private def padHex(hex: String) = "0" * (hex.length & 1) + hex
     private def toHex(i: Int): String = padHex(i.toHexString)
-    private def obdRequest(mode: Int, pid: Int) = s"${toHex(mode)}${toHex(pid)}"
+    private def obdRequest(mode: Int, pid: Int) =
+        if (pid < 0) s"${toHex(mode)}"
+        else s"${toHex(mode)}${toHex(pid)}"
     private def isSupportPid(pid: Int) = pid % ObdBridge.SupportRangeSize == 0
     private def optimizedRequest(mode: Int, pid: Int) = {
         val request = obdRequest(mode, pid)
@@ -95,21 +97,26 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         s"${request}1" // TODO replace constant 1 by proper calculation
     }
 
+
+    override def executeRequest(mode: ModeId): Future[Unit] = {
+        val request = obdRequest(mode.id, -1)
+        run(transport, request)
+        Future.successful()
+    }
+
     override def executeRequest[T](mode: ModeId, pid: Int, reader: Reader[T]): Future[Result[T]] = {
+        val request = optimizedRequest(mode.id, pid)
+        val rawResponse = run(transport, request)
+        val parsedResponses = parseElmResponse(rawResponse, mode, pid)
 
-        Future {
-            val request = optimizedRequest(mode.id, pid)
-            val rawResponse = run(transport, request)
-            val parsedResponses = parseElmResponse(rawResponse, mode, pid)
-
-            parsedResponses.flatMap {
-                case Vector((header, payload)) =>
-                    parseObdResponse(payload).flatMap {
-                        case (_, _, data) => reader.read(data, 0).map(_._1)
-                    }
-            }
+        val result = parsedResponses.flatMap {
+            case Vector((header, payload)) =>
+                parseObdResponse(payload).flatMap {
+                    case (_, _, data) => reader.read(data, 0).map(_._1)
+                }
         }
 
+        Future.successful(result)
     }
 
     override def executeRequest[A, B](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B])): Future[Result[(A, B)]] = ???
@@ -124,7 +131,7 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
 
     override def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]] = ???
 
-    private def run(transport: ElmTransport, cmd: String, readDelay: Long = 0): Vector[String] = {
+    private def run(transport: ElmTransport, cmd: String, readDelay: Long = 0): Vector[String] = synchronized {
         ElmTransport.deplete(transport)
         val elmCommand = s"$cmd\r"
         logger.trace("Request: >>>>>>>>>>>")

@@ -37,10 +37,6 @@ object StandardModes extends Enum[StandardMode] {
     val lookup: Map[Int, Mode] = values.map(m => m.id.id -> m).toMap
 }
 
-object ModeId {
-    val StandardResponseOffset: Int = 0x40
-}
-
 sealed trait ModeId {
     def id: Int
     def bytes: Array[Byte]
