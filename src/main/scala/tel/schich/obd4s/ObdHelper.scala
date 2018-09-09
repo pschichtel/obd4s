@@ -4,7 +4,7 @@ import tel.schich.javacan.CanFrame
 import tel.schich.javacan.isotp.ISOTPAddress._
 import tel.schich.javacan.isotp.{FrameHandler, ISOTPBroker, ISOTPChannel}
 import tel.schich.obd4s.can.CANObdBridge.{EffPriority, EffTestEquipmentAddress}
-import tel.schich.obd4s.obd.{CurrentDataRequests, ModeId, ObdException, PidSupportReader}
+import tel.schich.obd4s.obd.{CurrentDataRequests, ModeId, PidSupportReader}
 import tel.schich.obd4s.obd.StandardModes.CurrentData
 
 import scala.collection.mutable
@@ -23,19 +23,19 @@ object ObdHelper {
 
 
 
-    def detectSupport(bridge: ObdBridge, service: ModeId = CurrentData.id)(implicit ec: ExecutionContext): Future[Int => Boolean] = {
+    def detectSupport(bridge: ObdBridge, service: ModeId = CurrentData.id)(implicit ec: ExecutionContext): Future[Result[Int => Boolean]] = {
 
-        def scanSupport(pid: Int, currentSet: Vector[Boolean]): Future[Vector[Boolean]] = {
-            if (currentSet.nonEmpty && !currentSet.last) Future.successful(currentSet)
-            else if (pid > ObdBridge.MaximumPid) Future.successful(currentSet)
+        def scanSupport(pid: Int, currentSet: Vector[Boolean]): Future[Result[Vector[Boolean]]] = {
+            if (currentSet.nonEmpty && !currentSet.last) Future.successful(Ok(currentSet))
+            else if (pid > ObdBridge.MaximumPid) Future.successful(Ok(currentSet))
             else bridge.executeRequest(service, pid, PidSupportReader) flatMap {
                 case Ok(bitSet) => scanSupport(pid + ObdBridge.SupportRangeSize, currentSet ++ bitSet.set)
-                case Error(cause) => Future.failed(new ObdException(cause))
+                case Error(cause) => Future.successful(Error(cause))
             }
         }
 
-        scanSupport(CurrentDataRequests.Support01To20.pid, Vector(true)) map { supportVector =>
-            supportVector.applyOrElse(_: Int, (_: Int) => false)
+        scanSupport(CurrentDataRequests.Support01To20.pid, Vector(true)) map { result =>
+            result.map(support => support.applyOrElse(_: Int, (_: Int) => false))
         }
     }
 

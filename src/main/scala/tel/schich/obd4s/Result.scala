@@ -55,6 +55,7 @@ object InternalCauses extends Enum[Cause] with Causes {
     object WrongSid extends Cause(3, "Successful response, but for the wrong SID!")
     object UnknownResponse extends Cause(4, "ECU returned an unknown response!")
     object Timeout extends Cause(5, "Request timed out!")
+    object PidMismatch extends Cause(6, "A response PID did not match the request PID!")
 
     override val values = findValues
 }

@@ -15,7 +15,7 @@ abstract class FixedLengthReader[T](val length: Int) extends Reader[T] {
 
     final override def read(buf: IndexedSeq[Byte], offset: Int): Result[(T, Int)] = {
         if (buf.length < length) Error(InternalCauses.ResponseTooShort)
-        else read(buf.view(offset, length)).map(r => (r, length))
+        else read(buf.view(offset, offset + length)).map(r => (r, length))
     }
 
     def read(buf: BufferView): Result[T]

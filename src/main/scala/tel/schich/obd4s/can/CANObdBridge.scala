@@ -16,6 +16,11 @@ import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 
+object CANObdBridge {
+    val EffPriority = 0x18
+    val EffTestEquipmentAddress = 0xF1
+}
+
 class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
 
     private val channel = broker.createChannel(ecuAddress, aggregateFrames(this.handleResponse, this.handleIsotpTimeout))
@@ -24,7 +29,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
 
     private val scheduledExecutorService: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
 
-    private var inflightTimeout: ScheduledFuture[_] = _
+    private var inFlightTimeout: ScheduledFuture[_] = _
 
     override def executeRequest(mode: ModeId): Future[Unit] = {
         execAll(mode, Nil).map(_ => ())
@@ -33,7 +38,7 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
     override def executeRequest[A](mode: ModeId, pid: Int, reader: Reader[A]): Future[Result[A]] = {
         execAll(mode, Seq(pid)).map { result =>
             result
-                .flatMap { buf => reader.read(buf, mode.length) }
+                .flatMap { buf => readPid(pid, reader, buf, mode.length) }
                 .map(_._1)
         }
     }
@@ -43,8 +48,8 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         execAll(mode, Seq(a._1, b._1)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- a._2.read(buf, mode.length)
-                    (br, _ ) <- b._2.read(buf, oa)
+                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (br, _ ) <- readPid(b, buf, oa)
                 } yield (ar, br)
             }
         }
@@ -54,9 +59,9 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         execAll(mode, Seq(a._1, b._1, c._1)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- a._2.read(buf, mode.length)
-                    (br, ob) <- b._2.read(buf, oa)
-                    (cr, _ ) <- c._2.read(buf, ob)
+                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (br, ob) <- readPid(b, buf, oa)
+                    (cr, _ ) <- readPid(c, buf, ob)
                 } yield (ar, br, cr)
             }
         }
@@ -66,10 +71,10 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         execAll(mode, Seq(a._1, b._1, c._1, d._1)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- a._2.read(buf, mode.length)
-                    (br, ob) <- b._2.read(buf, oa)
-                    (cr, oc) <- c._2.read(buf, ob)
-                    (dr, _ ) <- d._2.read(buf, oc)
+                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (br, ob) <- readPid(b, buf, oa)
+                    (cr, oc) <- readPid(c, buf, ob)
+                    (dr, _ ) <- readPid(d, buf, oc)
                 } yield (ar, br, cr, dr)
             }
         }
@@ -79,11 +84,11 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         execAll(mode, Seq(a._1, b._1, c._1, d._1, e._1)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- a._2.read(buf, mode.length)
-                    (br, ob) <- b._2.read(buf, oa)
-                    (cr, oc) <- c._2.read(buf, ob)
-                    (dr, od) <- d._2.read(buf, oc)
-                    (er, _ ) <- e._2.read(buf, od)
+                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (br, ob) <- readPid(b, buf, oa)
+                    (cr, oc) <- readPid(c, buf, ob)
+                    (dr, od) <- readPid(d, buf, oc)
+                    (er, _ ) <- readPid(e, buf, od)
                 } yield (ar, br, cr, dr, er)
             }
         }
@@ -93,12 +98,12 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         execAll(mode, Seq(a._1, b._1, c._1, d._1, e._1, f._1)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- a._2.read(buf, mode.length)
-                    (br, ob) <- b._2.read(buf, oa)
-                    (cr, oc) <- c._2.read(buf, ob)
-                    (dr, od) <- d._2.read(buf, oc)
-                    (er, oe) <- e._2.read(buf, od)
-                    (fr, _ ) <- f._2.read(buf, oe)
+                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (br, ob) <- readPid(b, buf, oa)
+                    (cr, oc) <- readPid(c, buf, ob)
+                    (dr, od) <- readPid(d, buf, oc)
+                    (er, oe) <- readPid(e, buf, od)
+                    (fr, _ ) <- readPid(f, buf, oe)
                 } yield (ar, br, cr, dr, er, fr)
             }
         }
@@ -107,16 +112,16 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
     override def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]] = {
 
         @tailrec
-        def parseResponse(buf: Array[Byte], offset: Int, readers: Seq[Reader[A]], result: Result[Seq[A]]): Result[Seq[A]] = {
-            if (readers.isEmpty) result
+        def parseResponse(buf: Array[Byte], offset: Int, reqs: Seq[Req[A]], result: Result[Seq[A]]): Result[Seq[A]] = {
+            if (reqs.isEmpty) result
             else if (offset > buf.length) Error(ResponseTooShort)
             else {
                 result match {
                     case Ok(responses) =>
-                        val r = readers.head
-                        r.read(buf, offset) match {
+                        val r = reqs.head
+                        readPid(r, buf, offset) match {
                             case Ok((response, byteRead)) =>
-                                parseResponse(buf, offset + byteRead, readers.tail, Ok(responses :+ response))
+                                parseResponse(buf, offset + byteRead, reqs.tail, Ok(responses :+ response))
                             case Error(reason) => Error(reason)
                         }
                     case e @ Error(_) => e
@@ -125,8 +130,18 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
 
         execAll(mode, reqs.map(_._1)).map { result =>
-            result.flatMap { buf => parseResponse(buf, mode.length, reqs.map(_._2), Ok(Seq.empty)) }
+            result.flatMap { buf => parseResponse(buf, mode.length, reqs, Ok(Seq.empty)) }
         }
+    }
+
+    private def readPid[A](req: Req[A], buf: IndexedSeq[Byte], offset: Int): Result[(A, Int)] = {
+        readPid(req._1, req._2, buf, offset)
+    }
+
+    private def readPid[A](pid: Int, reader: Reader[A], buf: IndexedSeq[Byte], offset: Int): Result[(A, Int)] = {
+        if (offset >= buf.length) Error(InternalCauses.ResponseTooShort)
+        else if (buf(offset) != pid) Error(InternalCauses.PidMismatch)
+        else reader.read(buf, offset + 1)
     }
 
     private def execAll(mode: ModeId, pids: Seq[Int]): Future[Result[Array[Byte]]] = {
@@ -148,10 +163,11 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
     }
 
-    private def cancelTimeout(): Unit = {
-        if (inflightTimeout != null) {
-            inflightTimeout.cancel(false)
-            inflightTimeout = null
+    private def cancelTimeout(): Unit = synchronized {
+        if (inFlightTimeout != null) {
+            // safe to cancel even if already done, but don't interrupt as this might get called from the task itself
+            inFlightTimeout.cancel(false)
+            inFlightTimeout = null
         }
     }
 
@@ -159,50 +175,49 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         if (requestQueue.nonEmpty) {
             channel.send(requestQueue.head.msg)
             cancelTimeout()
-            inflightTimeout = scheduledExecutorService.schedule((timeoutInflightRequest _).asInstanceOf[Runnable], timeout.toMillis, MILLISECONDS)
+            val timeoutTask = new Runnable {
+                override def run(): Unit = timeoutInflightRequest()
+            }
+            inFlightTimeout = scheduledExecutorService.schedule(timeoutTask, timeout.toMillis, MILLISECONDS)
         }
     }
 
-    private def handleResponse(ch: ISOTPChannel, source: Int, message: Array[Byte]): Unit = {
-        def consume(): Unit = {
-            requestQueue.dequeue()
-            cancelTimeout()
-            sendNext()
-        }
+    private def consume(): PendingRequest = synchronized {
+        val entry = requestQueue.dequeue()
+        cancelTimeout()
+        sendNext()
+        entry
+    }
 
-        synchronized {
+    private def hexDump(bytes: Array[Byte]): String = {
+        bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
+    }
+
+    private def handleResponse(ch: ISOTPChannel, source: Int, message: Array[Byte]): Unit = synchronized {
+        // don't handle messages, when we don't have an in-flight request
+        if (requestQueue.nonEmpty) {
             val req = requestQueue.head
             if (isMatchingResponse(req.sid, message)) {
-                req.promise.success(Ok(message))
                 consume()
-            }  else getErrorCause(message) match {
+                req.promise.success(Ok(message))
+            } else getErrorCause(message) match {
                 case Some(cause) =>
+                    consume()
                     // yep, it's an error
                     req.promise.success(Error(cause))
-                    consume()
                 case _ =>
                 // don't know what it is, but also don't care
             }
         }
-
     }
 
     private def handleIsotpTimeout(source: Int): Unit = synchronized {
-        val current = requestQueue.dequeue()
-        sendNext()
-        current.promise.failure(new TimeoutException)
+        consume().promise.failure(new TimeoutException)
     }
 
     private def timeoutInflightRequest(): Unit = synchronized {
-        val current = requestQueue.dequeue()
-        sendNext()
-        current.promise.success(Error(InternalCauses.Timeout))
+        consume().promise.success(Error(InternalCauses.Timeout))
     }
 
     private case class PendingRequest(sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])
-}
-
-object CANObdBridge {
-    val EffPriority = 0x18
-    val EffTestEquipmentAddress = 0xF1
 }

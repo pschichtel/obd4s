@@ -12,7 +12,7 @@ object ObdBridge {
     val NegativeResponseCode: Byte = 0x7F.toByte
 
     def isMatchingResponse(requestSid: Byte, data: Array[Byte]): Boolean =
-        isPositiveResponse(data) && (data(0) + PositiveResponseBase) == requestSid
+        isPositiveResponse(data) && (requestSid + PositiveResponseBase) == data(0)
 
     def isPositiveResponse(data: Array[Byte]): Boolean =
         data.nonEmpty && data(0) >= PositiveResponseBase
