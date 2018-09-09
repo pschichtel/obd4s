@@ -9,6 +9,20 @@ object ObdBridge {
     val SupportRangeSize: Int = 0x20
     val MaximumPid: Int = 255
     val PositiveResponseBase: Byte = 0x40
+    val NegativeResponseCode: Byte = 0x7F.toByte
+
+    def isMatchingResponse(requestSid: Byte, data: Array[Byte]): Boolean =
+        isPositiveResponse(data) && (data(0) + PositiveResponseBase) == requestSid
+
+    def isPositiveResponse(data: Array[Byte]): Boolean =
+        data.nonEmpty && data(0) >= PositiveResponseBase
+
+    def isErrorResponse(data: Array[Byte]): Boolean =
+        data.nonEmpty && data(0) == NegativeResponseCode
+
+    def getErrorCause(data: Array[Byte]): Option[Cause] =
+        if (!ObdBridge.isErrorResponse(data) || data.length < 2) None
+        else Some(ObdCauses.lookupByCode.getOrElse(data(1), InternalCauses.UnknownCause))
 }
 
 trait ObdBridge extends StrictLogging {

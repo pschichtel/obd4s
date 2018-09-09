@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.isotp.AggregatingFrameHandler.aggregateFrames
 import tel.schich.javacan.isotp.{ISOTPBroker, ISOTPChannel}
 import tel.schich.obd4s.InternalCauses.ResponseTooShort
-import tel.schich.obd4s.ObdUtil.{getErrorCause, isMatchingResponse}
+import tel.schich.obd4s.ObdBridge.{getErrorCause, isMatchingResponse}
 import tel.schich.obd4s._
 import tel.schich.obd4s.obd.{ModeId, Reader}
 
