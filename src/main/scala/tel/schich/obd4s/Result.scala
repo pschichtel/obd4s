@@ -10,6 +10,7 @@ sealed trait Result[+T] { self =>
     def foreach[U](f: T => U): Unit
     def filter(p: T => Boolean): Result[T]
     def withFilter(p: T => Boolean): WithFilter = new WithFilter(p)
+    def getOrElse[A >: T](alt: => A): A
 
     class WithFilter(p: T => Boolean) {
         def map[B](f: T => B): Result[B] = self filter p map f
@@ -30,6 +31,7 @@ final case class Ok[T](result: T) extends Result[T] {
     override def flatMap[A](f: T => Result[A]): Result[A] = f(result)
     override def foreach[U](f: T => U): Unit = f(result)
     override def filter(p: T => Boolean): Result[T] = if (p(result)) Ok(result) else Error(InternalCauses.FilteredAway)
+    override def getOrElse[A >: T](alt: => A): A = result
 }
 
 sealed case class Error[T](cause: Cause) extends Result[T] {
@@ -39,6 +41,7 @@ sealed case class Error[T](cause: Cause) extends Result[T] {
     override def flatMap[A](f: T => Result[A]): Result[A] = Error(cause)
     override def foreach[U](f: T => U): Unit = {}
     override def filter(p: T => Boolean): Result[T] = Error(cause)
+    override def getOrElse[A >: T](alt: => A): A = alt
 }
 
 sealed case class Cause(code: Int, reason: String) extends EnumEntry
