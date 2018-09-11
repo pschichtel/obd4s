@@ -4,11 +4,13 @@ import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit.SECONDS
 
 import com.typesafe.scalalogging.StrictLogging
+import tel.schich.obd4s.InternalCauses.{ReadError, ResponseTooShort}
+import tel.schich.obd4s._
 import tel.schich.obd4s.obd.DistanceReader.DistanceUnit
 import tel.schich.obd4s.obd.FuelSystemStatus.Unavailable
-import tel.schich.obd4s.{Cause, Error, Ok, Result}
 
 import scala.concurrent.duration.TimeUnit
+import scala.util.control.NonFatal
 
 case class Temperature(temperature: Double) extends Response {
     override def values() = Map("temperature" -> FloatValue(temperature))
@@ -409,9 +411,22 @@ object IntReader extends SingleIntReader[Int] {
     override def read(a: Int): Result[Int] = Ok(a)
 }
 
-case class StringReader(charset: Charset) extends Reader[String] {
+case class StringReader(charset: Charset, length: Int = -1) extends Reader[String] with StrictLogging {
     override def read(buf: IndexedSeq[Byte], offset: Int): Result[(String, Int)] = {
-        val len = buf.length - offset
-        Ok((new String(buf.toArray, offset, len, charset), len))
+        val availableBytes = buf.length - offset
+        val len =
+            if (length >= 0) length
+            else availableBytes
+        if (len > availableBytes) {
+            Error(ResponseTooShort)
+        } else {
+            try {
+                Ok((new String(buf.toArray, offset, len, charset), len))
+            } catch {
+                case NonFatal(e) =>
+                    logger.error("Failed to make a string from the response.", e)
+                    Error(ReadError)
+            }
+        }
     }
 }
