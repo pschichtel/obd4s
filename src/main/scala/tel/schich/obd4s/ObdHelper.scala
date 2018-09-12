@@ -1,5 +1,6 @@
 package tel.schich.obd4s
 
+import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.CanFrame
 import tel.schich.javacan.isotp.ISOTPAddress._
 import tel.schich.javacan.isotp.{FrameHandler, ISOTPBroker, ISOTPChannel}
@@ -11,7 +12,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
-object ObdHelper {
+object ObdHelper extends StrictLogging {
     def checkResponse(requestSid: Byte, data: Array[Byte]): Result[Array[Byte]] =
         // there must be at least the response code, otherwise this is very weird.
         if (ObdBridge.isMatchingResponse(requestSid, data)) Ok(data)
@@ -29,7 +30,9 @@ object ObdHelper {
             if (currentSet.nonEmpty && !currentSet.last) Future.successful(Ok(currentSet))
             else if (pid > ObdBridge.MaximumPid) Future.successful(Ok(currentSet))
             else bridge.executeRequest(service, pid, PidSupportReader) flatMap {
-                case Ok(bitSet) => scanSupport(pid + ObdBridge.SupportRangeSize, currentSet ++ bitSet.set)
+                case Ok(bitSet) =>
+                    logger.trace(s"Support detected with ${pid.toHexString}: ${bitSet.set.mkString(",")}")
+                    scanSupport(pid + ObdBridge.SupportRangeSize, currentSet ++ bitSet.set)
                 case Error(cause) => Future.successful(Error(cause))
             }
         }
