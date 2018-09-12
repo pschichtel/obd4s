@@ -32,7 +32,7 @@ final case class Ok[T](result: T) extends Result[T] {
     override def getOrElse[A >: T](alt: => A): A = result
 }
 
-sealed case class Error[T](cause: Cause) extends Result[T] {
+final case class Error[T](cause: Cause) extends Result[T] {
     override def toEither: Either[Cause, T] = Left(cause)
     override def toOption: Option[T] = None
     override def map[A](f: T => A): Result[A] = Error(cause)
