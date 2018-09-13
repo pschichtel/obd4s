@@ -9,7 +9,7 @@ import tel.schich.javacan.isotp.{ISOTPBroker, ISOTPChannel}
 import tel.schich.obd4s.InternalCauses.ResponseTooShort
 import tel.schich.obd4s.ObdBridge.{getErrorCause, isMatchingResponse}
 import tel.schich.obd4s._
-import tel.schich.obd4s.obd.{ModeId, Reader}
+import tel.schich.obd4s.obd.{ModeId, PlainRequest, Reader}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -44,8 +44,8 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
     }
 
 
-    override def executeRequest[A, B](mode: ModeId, a: Req[A], b: Req[B]): Future[Result[(A, B)]] = {
-        execAll(mode, Seq(a._1, b._1)).map { result =>
+    override def executeRequest[A, B](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B]): Future[Result[(A, B)]] = {
+        execAll(mode, Seq(a.pid, b.pid)).map { result =>
             result.flatMap { buf =>
                 for {
                     (ar, oa) <- readPid(a, buf, mode.length)
@@ -55,8 +55,8 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
     }
 
-    override def executeRequest[A, B, C](mode: ModeId, a: Req[A], b: Req[B], c: Req[C]): Future[Result[(A, B, C)]] = {
-        execAll(mode, Seq(a._1, b._1, c._1)).map { result =>
+    override def executeRequest[A, B, C](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C]): Future[Result[(A, B, C)]] = {
+        execAll(mode, Seq(a.pid, b.pid, c.pid)).map { result =>
             result.flatMap { buf =>
                 for {
                     (ar, oa) <- readPid(a, buf, mode.length)
@@ -67,8 +67,8 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
     }
 
-    override def executeRequest[A, B, C, D](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D]): Future[Result[(A, B, C, D)]] = {
-        execAll(mode, Seq(a._1, b._1, c._1, d._1)).map { result =>
+    override def executeRequest[A, B, C, D](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D]): Future[Result[(A, B, C, D)]] = {
+        execAll(mode, Seq(a.pid, b.pid, c.pid, d.pid)).map { result =>
             result.flatMap { buf =>
                 for {
                     (ar, oa) <- readPid(a, buf, mode.length)
@@ -80,8 +80,8 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
     }
 
-    override def executeRequest[A, B, C, D, E](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D], e: Req[E]): Future[Result[(A, B, C, D, E)]] = {
-        execAll(mode, Seq(a._1, b._1, c._1, d._1, e._1)).map { result =>
+    override def executeRequest[A, B, C, D, E](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E]): Future[Result[(A, B, C, D, E)]] = {
+        execAll(mode, Seq(a.pid, b.pid, c.pid, d.pid, e.pid)).map { result =>
             result.flatMap { buf =>
                 for {
                     (ar, oa) <- readPid(a, buf, mode.length)
@@ -94,8 +94,8 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
     }
 
-    override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D], e: Req[E], f: Req[F]): Future[Result[(A, B, C, D, E, F)]] = {
-        execAll(mode, Seq(a._1, b._1, c._1, d._1, e._1, f._1)).map { result =>
+    override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E], f: PlainRequest[F]): Future[Result[(A, B, C, D, E, F)]] = {
+        execAll(mode, Seq(a.pid, b.pid, c.pid, d.pid, e.pid, f.pid)).map { result =>
             result.flatMap { buf =>
                 for {
                     (ar, oa) <- readPid(a, buf, mode.length)
@@ -109,10 +109,10 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
     }
 
-    override def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]] = {
+    override def executeRequests[A](mode: ModeId, reqs: Seq[PlainRequest[_ <: A]]): Future[Result[Seq[_ <: A]]] = {
 
         @tailrec
-        def parseResponse(buf: Array[Byte], offset: Int, reqs: Seq[Req[A]], result: Result[Seq[A]]): Result[Seq[A]] = {
+        def parseResponse(buf: Array[Byte], offset: Int, reqs: Seq[PlainRequest[_ <: A]], result: Result[Seq[_ <: A]]): Result[Seq[_ <: A]] = {
             if (reqs.isEmpty) result
             else if (offset > buf.length) Error(ResponseTooShort)
             else {
@@ -129,13 +129,13 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
             }
         }
 
-        execAll(mode, reqs.map(_._1)).map { result =>
+        execAll(mode, reqs.map(_.pid)).map { result =>
             result.flatMap { buf => parseResponse(buf, mode.length, reqs, Ok(Seq.empty)) }
         }
     }
 
-    private def readPid[A](req: Req[A], buf: IndexedSeq[Byte], offset: Int): Result[(A, Int)] = {
-        readPid(req._1, req._2, buf, offset)
+    private def readPid[A](req: PlainRequest[A], buf: IndexedSeq[Byte], offset: Int): Result[(A, Int)] = {
+        readPid(req.pid, req.reader, buf, offset)
     }
 
     private def readPid[A](pid: Int, reader: Reader[A], buf: IndexedSeq[Byte], offset: Int): Result[(A, Int)] = {

@@ -29,31 +29,29 @@ object ObdBridge {
 
 trait ObdBridge extends StrictLogging {
 
-    type Req[T] = (Int, Reader[T])
-
     def executeRequest[M <: Mode, A](a: Request[A, M]): Future[Result[A]] =
         executeRequest(a.mode.id, a.pid, a.reader)
     def executeRequest[M <: Mode, A, B](a: Request[A, M], b: Request[B, M]): Future[Result[(A, B)]] =
-        executeRequest(a.mode.id, a.tupled, b.tupled)
+        executeRequest(a.mode.id, a.plain, b.plain)
     def executeRequest[M <: Mode, A, B, C](a: Request[A, M], b: Request[B, M], c: Request[C, M]): Future[Result[(A, B, C)]] =
-        executeRequest(a.mode.id, a.tupled, b.tupled, c.tupled)
+        executeRequest(a.mode.id, a.plain, b.plain, c.plain)
     def executeRequest[M <: Mode, A, B, C, D](a: Request[A, M], b: Request[B, M], c: Request[C, M], d: Request[D, M]): Future[Result[(A, B, C, D)]] =
-        executeRequest(a.mode.id, a.tupled, b.tupled, c.tupled, d.tupled)
+        executeRequest(a.mode.id, a.plain, b.plain, c.plain, d.plain)
     def executeRequest[M <: Mode, A, B, C, D, E](a: Request[A, M], b: Request[B, M], c: Request[C, M], d: Request[D, M], e: Request[E, M]): Future[Result[(A, B, C, D, E)]] =
-        executeRequest(a.mode.id, a.tupled, b.tupled, c.tupled, d.tupled, e.tupled)
+        executeRequest(a.mode.id, a.plain, b.plain, c.plain, d.plain, e.plain)
     def executeReuqest[M <: Mode, A, B, C, D, E, F](a: Request[A, M], b: Request[B, M], c: Request[C, M], d: Request[D, M], e: Request[E, M], f: Request[F, M]): Future[Result[(A, B, C, D, E, F)]] =
-        executeRequest(a.mode.id, a.tupled, b.tupled, c.tupled, d.tupled, e.tupled, f.tupled)
-    def executeRequest[M <: Mode, A](reqs: Seq[Request[A, M]]): Future[Result[Seq[A]]] =
+        executeRequest(a.mode.id, a.plain, b.plain, c.plain, d.plain, e.plain, f.plain)
+    def executeRequests[M <: Mode, A](reqs: Seq[Request[_ <: A, M]]): Future[Result[Seq[_ <: A]]] =
         if (reqs.isEmpty) Future.failed(new IllegalArgumentException("No requests given!"))
-        else executeRequest(reqs.head.mode.id, reqs.map(_.tupled))
+        else executeRequests[A](reqs.head.mode.id, reqs.map(_.plain))
 
     def executeRequest(mode: ModeId): Future[Unit]
     def executeRequest[A](mode: ModeId, pid: Int, reader: Reader[A]): Future[Result[A]]
-    def executeRequest[A](mode: ModeId, a: Req[A]): Future[Result[A]] = executeRequest(mode, a._1, a._2)
-    def executeRequest[A, B](mode: ModeId, a: Req[A], b: Req[B]): Future[Result[(A, B)]]
-    def executeRequest[A, B, C](mode: ModeId, a: Req[A], b: Req[B], c: Req[C]): Future[Result[(A, B, C)]]
-    def executeRequest[A, B, C, D](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D]): Future[Result[(A, B, C, D)]]
-    def executeRequest[A, B, C, D, E](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D], e: Req[E]): Future[Result[(A, B, C, D, E)]]
-    def executeRequest[A, B, C, D, E, F](mode: ModeId, a: Req[A], b: Req[B], c: Req[C], d: Req[D], e: Req[E], f: Req[F]): Future[Result[(A, B, C, D, E, F)]]
-    def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]]
+    def executeRequest[A](mode: ModeId, a: PlainRequest[A]): Future[Result[A]] = executeRequest(mode, a.pid, a.reader)
+    def executeRequest[A, B](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B]): Future[Result[(A, B)]]
+    def executeRequest[A, B, C](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C]): Future[Result[(A, B, C)]]
+    def executeRequest[A, B, C, D](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D]): Future[Result[(A, B, C, D)]]
+    def executeRequest[A, B, C, D, E](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E]): Future[Result[(A, B, C, D, E)]]
+    def executeRequest[A, B, C, D, E, F](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E], f: PlainRequest[F]): Future[Result[(A, B, C, D, E, F)]]
+    def executeRequests[A](mode: ModeId, reqs: Seq[PlainRequest[_ <: A]]): Future[Result[Seq[_ <: A]]]
 }

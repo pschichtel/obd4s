@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import tel.schich.obd4s.InternalCauses.{ResponseTooShort, UnknownResponse}
 import tel.schich.obd4s._
 import tel.schich.obd4s.elm.ElmCommands.CANReceiveFilter
-import tel.schich.obd4s.obd.{ModeId, Reader}
+import tel.schich.obd4s.obd.{ModeId, PlainRequest, Reader}
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -119,17 +119,18 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         Future.successful(result)
     }
 
-    override def executeRequest[A, B](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B])): Future[Result[(A, B)]] = ???
 
-    override def executeRequest[A, B, C](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B]), c: (Int, Reader[C])): Future[Result[(A, B, C)]] = ???
+    override def executeRequest[A, B](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B]): Future[Result[(A, B)]] = ???
 
-    override def executeRequest[A, B, C, D](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B]), c: (Int, Reader[C]), d: (Int, Reader[D])): Future[Result[(A, B, C, D)]] = ???
+    override def executeRequest[A, B, C](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C]): Future[Result[(A, B, C)]] = ???
 
-    override def executeRequest[A, B, C, D, E](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B]), c: (Int, Reader[C]), d: (Int, Reader[D]), e: (Int, Reader[E])): Future[Result[(A, B, C, D, E)]] = ???
+    override def executeRequest[A, B, C, D](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D]): Future[Result[(A, B, C, D)]] = ???
 
-    override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: (Int, Reader[A]), b: (Int, Reader[B]), c: (Int, Reader[C]), d: (Int, Reader[D]), e: (Int, Reader[E]), f: (Int, Reader[F])): Future[Result[(A, B, C, D, E, F)]] = ???
+    override def executeRequest[A, B, C, D, E](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E]): Future[Result[(A, B, C, D, E)]] = ???
 
-    override def executeRequest[A](mode: ModeId, reqs: Seq[Req[A]]): Future[Result[Seq[A]]] = ???
+    override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E], f: PlainRequest[F]): Future[Result[(A, B, C, D, E, F)]] = ???
+
+    override def executeRequests[A](mode: ModeId, reqs: Seq[PlainRequest[_ <: A]]): Future[Result[Seq[_ <: A]]] = ???
 
     private def run(transport: ElmTransport, cmd: String, readDelay: Long = 0): Vector[String] = synchronized {
         ElmTransport.deplete(transport)
