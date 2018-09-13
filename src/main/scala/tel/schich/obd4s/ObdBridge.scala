@@ -1,6 +1,7 @@
 package tel.schich.obd4s
 
 import com.typesafe.scalalogging.StrictLogging
+import tel.schich.javacan.CanFrame.MAX_DATA_LENGTH
 import tel.schich.obd4s.obd._
 
 import scala.concurrent.Future
@@ -10,6 +11,7 @@ object ObdBridge {
     val MaximumPid: Int = 255
     val PositiveResponseBase: Byte = 0x40
     val NegativeResponseCode: Byte = 0x7F.toByte
+    val ObdMaxRequestPids: Int = MAX_DATA_LENGTH - 2 // 2 = Single-Frame PCI Size + SID Size
 
     def isMatchingResponse(requestSid: Byte, data: Array[Byte]): Boolean =
         isPositiveResponse(data) && (requestSid + PositiveResponseBase) == data(0)
