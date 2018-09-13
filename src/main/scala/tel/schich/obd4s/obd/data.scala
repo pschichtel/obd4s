@@ -63,6 +63,11 @@ case class FuelType(id: Int, name: String) extends Response {
 }
 
 object FuelTypeReader extends SingleByteReader[FuelType] {
+
+    case class UnknownFuelType(id: Int) extends Cause {
+        override def reason: String = s"Invalid fuel type id $id!"
+    }
+
     val KnownFuels = Map(
         0x01 -> "Gasoline",
         0x02 -> "Methanol",
@@ -92,7 +97,7 @@ object FuelTypeReader extends SingleByteReader[FuelType] {
 
     override def read(a: Int): Result[FuelType] = {
         a match {
-            case n if n <= 0 => Error(Cause(1, s"Invalid fuel type id $n!"))
+            case n if n <= 0 => Error(UnknownFuelType(n))
             case n if KnownFuels.isDefinedAt(n) => Ok(FuelType(n, KnownFuels(n)))
             case n => Ok(FuelType(n, "Unknown"))
         }
@@ -126,6 +131,10 @@ object FuelSystemStatus {
 }
 object FuelSystemStatusReader extends TwoByteReader[FuelSystemStatus] {
 
+    case class FuelSystemUnavailable(response: Int) extends Cause {
+        override def reason: String = s"Fuel system 1 returned an undefined response: $response"
+    }
+
     private def toStatus(i: Int): FuelSystemStatus.Status = {
         i match {
             case 1 => FuelSystemStatus.OpenLoopEngineTemperature
@@ -139,7 +148,7 @@ object FuelSystemStatusReader extends TwoByteReader[FuelSystemStatus] {
 
     override def read(a: Int, b: Int): Result[FuelSystemStatus] = {
         toStatus(a) match {
-            case Unavailable => Error(Cause(2, s"Fuel system 1 returned an undefined response: $a"))
+            case Unavailable => Error(FuelSystemUnavailable(a))
             case statusA => Ok(FuelSystemStatus(statusA, toStatus(b)))
         }
 
@@ -172,8 +181,11 @@ case class OxygenSensorFuelVoltageTrim(voltage: Double, fuelTrim: Double) extend
     )
 }
 object OxygenSensorFuelVoltageReader extends TwoByteReader[OxygenSensorFuelVoltageTrim] {
+
+    object OxygenSensorUnsupported extends SimpleCause("Oxygen sensor response signaled no support")
+
     override def read(a: Int, b: Int): Result[OxygenSensorFuelVoltageTrim] = {
-        if (b == 255) Error(Cause(3, s"Oxygen sensor response signaled no support: $b"))
+        if (b == 255) Error(OxygenSensorUnsupported)
         else Ok(OxygenSensorFuelVoltageTrim(a / 200.0, 100.0/128.0 * b - 100.0))
     }
 }
@@ -411,7 +423,7 @@ object IntReader extends SingleIntReader[Int] {
     override def read(a: Int): Result[Int] = Ok(a)
 }
 
-case class StringReader(charset: Charset, length: Int = -1) extends Reader[String] with StrictLogging {
+case class StringReader(charset: Charset, length: Int = -1, trimControlChars: Boolean = true) extends Reader[String] with StrictLogging {
     override def read(buf: IndexedSeq[Byte], offset: Int): Result[(String, Int)] = {
         val availableBytes = buf.length - offset
         val len =
@@ -421,7 +433,12 @@ case class StringReader(charset: Charset, length: Int = -1) extends Reader[Strin
             Error(ResponseTooShort)
         } else {
             try {
-                Ok((new String(buf.toArray, offset, len, charset), len))
+                logger.info(s"String read: ${ObdHelper.hexDump(buf.view(offset, offset + len))}")
+                val str = new String(buf.toArray, offset, len, charset)
+                val finalStr =
+                    if (trimControlChars) str.dropWhile(_.toInt < 32).reverse.dropWhile(_.toInt < 32).reverse
+                    else str
+                Ok((finalStr, len))
             } catch {
                 case NonFatal(e) =>
                     logger.error("Failed to make a string from the response.", e)

@@ -1,7 +1,7 @@
 package tel.schich.obd4s
 
 import com.typesafe.scalalogging.StrictLogging
-import tel.schich.javacan.CanFrame
+import tel.schich.javacan.{CanFrame, CanId}
 import tel.schich.javacan.isotp.ISOTPAddress._
 import tel.schich.javacan.isotp.{FrameHandler, ISOTPBroker, ISOTPChannel}
 import tel.schich.obd4s.can.CANObdBridge.{EffPriority, EffTestEquipmentAddress}
@@ -13,6 +13,22 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 object ObdHelper extends StrictLogging {
+
+    def hexDump(bytes: Seq[Byte]): String = {
+        bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
+    }
+
+    def addressAsHex(addr: Int): String = {
+        val padLen = if (CanId.isExtended(addr)) 29/4+1 else 11/4+1
+        addr.toHexString.toUpperCase.reverse.padTo(padLen, '0').reverse
+    }
+
+    def asHex(num: Long): String = {
+        val hex = num.toHexString
+        if ((hex.length & 1) == 0) hex
+        else s"0$hex"
+    }
+
     def checkResponse(requestSid: Byte, data: Array[Byte]): Result[Array[Byte]] =
         // there must be at least the response code, otherwise this is very weird.
         if (ObdBridge.isMatchingResponse(requestSid, data)) Ok(data)

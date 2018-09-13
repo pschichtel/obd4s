@@ -134,14 +134,16 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         }
     }
 
-    private def readPid[A](req: PlainRequest[A], buf: IndexedSeq[Byte], offset: Int): Result[(A, Int)] = {
+    private def readPid[A](req: PlainRequest[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
         readPid(req.pid, req.reader, buf, offset)
     }
 
-    private def readPid[A](pid: Int, reader: Reader[A], buf: IndexedSeq[Byte], offset: Int): Result[(A, Int)] = {
+    private def readPid[A](pid: Int, reader: Reader[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
         if (offset >= buf.length) Error(InternalCauses.ResponseTooShort)
-        else if (buf(offset) != pid) Error(InternalCauses.PidMismatch)
-        else reader.read(buf, offset + 1)
+        else if ((buf(offset) & 0xFF) != pid) Error(PidMismatch(pid, offset, buf))
+        else reader.read(buf, offset + 1) map {
+            case (result, bytesRead) => (result, bytesRead + 1)
+        }
     }
 
     private def execAll(mode: ModeId, pids: Seq[Int]): Future[Result[Array[Byte]]] = {
@@ -187,10 +189,6 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         cancelTimeout()
         sendNext()
         entry
-    }
-
-    private def hexDump(bytes: Array[Byte]): String = {
-        bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
     }
 
     private def handleResponse(ch: ISOTPChannel, source: Int, message: Array[Byte]): Unit = synchronized {
