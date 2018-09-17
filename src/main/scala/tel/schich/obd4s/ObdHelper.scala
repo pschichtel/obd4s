@@ -62,7 +62,7 @@ object ObdHelper extends StrictLogging {
     def detectECUAddresses(broker: ISOTPBroker, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
         val addresses = mutable.Set[Int]()
         val logger = new AddressLogger(addresses)
-        val message = Array[Byte](CurrentData.id.bytes: _*, Support01To20.toByte)
+        val message = CurrentData.id.bytes :+ Support01To20.toByte
 
         val sffChannel = broker.createChannel(SFF_FUNCTIONAL_ADDRESS, logger)
         val effChannel = broker.createChannel(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL), logger)
