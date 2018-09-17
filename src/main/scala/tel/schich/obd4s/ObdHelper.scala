@@ -15,6 +15,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object ObdHelper extends StrictLogging {
 
+    val EcuDetectionMessage: Array[Byte] = CurrentData.id.bytes ++ Support01To20.bytes
+
     def hexDump(bytes: Seq[Byte]): String = {
         bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
     }
@@ -62,13 +64,12 @@ object ObdHelper extends StrictLogging {
     def detectECUAddresses(broker: ISOTPBroker, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
         val addresses = mutable.Set[Int]()
         val logger = new AddressLogger(addresses)
-        val message = CurrentData.id.bytes :+ Support01To20.toByte
 
         val sffChannel = broker.createChannel(SFF_FUNCTIONAL_ADDRESS, logger)
         val effChannel = broker.createChannel(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL), logger)
 
-        sffChannel.send(message)
-        effChannel.send(message)
+        sffChannel.send(EcuDetectionMessage)
+        effChannel.send(EcuDetectionMessage)
 
         Thread.sleep(timeout.toMillis)
 
