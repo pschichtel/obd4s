@@ -73,8 +73,8 @@ object ObdHelper extends StrictLogging {
 
         Thread.sleep(timeout.toMillis)
 
-        sffChannel.close()
-        effChannel.close()
+        sffChannel.closeNow()
+        effChannel.closeNow()
 
         addresses.toSet.map(returnAddress)
     }
