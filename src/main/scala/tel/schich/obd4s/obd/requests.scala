@@ -6,7 +6,9 @@ import java.util.concurrent.TimeUnit.{MINUTES, SECONDS}
 import enumeratum.{Enum, EnumEntry}
 import tel.schich.obd4s.obd.StandardModes.{CurrentData, VehicleInfo}
 
-sealed abstract class PredefinedRequest[T, M <: Mode](mode: M, pid: Int, reader: Reader[T]) extends Request(mode, pid, reader) with EnumEntry {}
+sealed abstract class PredefinedRequest[T, M <: Mode](mode: M, pid: Int, reader: Reader[T]) extends Request(mode, pid, reader) with EnumEntry {
+    def toByte: Byte = pid.toByte
+}
 
 object CurrentDataRequests extends Enum[PredefinedRequest[_ <: Response, CurrentData.type]] {
     case object Support01To20                        extends PredefinedRequest(CurrentData, 0x00, PidSupportReader)

@@ -5,6 +5,7 @@ import tel.schich.javacan.{CanFrame, CanId}
 import tel.schich.javacan.isotp.ISOTPAddress._
 import tel.schich.javacan.isotp.{FrameHandler, ISOTPBroker, ISOTPChannel}
 import tel.schich.obd4s.can.CANObdBridge.{EffPriority, EffTestEquipmentAddress}
+import tel.schich.obd4s.obd.CurrentDataRequests.Support01To20
 import tel.schich.obd4s.obd.{CurrentDataRequests, ModeId, PidSupportReader}
 import tel.schich.obd4s.obd.StandardModes.CurrentData
 
@@ -61,7 +62,7 @@ object ObdHelper extends StrictLogging {
     def detectECUAddresses(broker: ISOTPBroker, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
         val addresses = mutable.Set[Int]()
         val logger = new AddressLogger(addresses)
-        val message = Array[Byte](0x01, 0x00)
+        val message = Array[Byte](CurrentData.id.bytes: _*, Support01To20.toByte)
 
         val sffChannel = broker.createChannel(SFF_FUNCTIONAL_ADDRESS, logger)
         val effChannel = broker.createChannel(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL), logger)
