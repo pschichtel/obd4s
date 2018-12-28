@@ -1,21 +1,29 @@
 package tel.schich.obd4s
 
+import java.nio.ByteBuffer
+import java.nio.channels.SelectionKey.OP_READ
+
 import com.typesafe.scalalogging.StrictLogging
-import tel.schich.javacan.{CanFrame, CanId}
-import tel.schich.javacan.isotp.ISOTPAddress._
-import tel.schich.javacan.isotp.{FrameHandler, ISOTPBroker, ISOTPChannel}
+import tel.schich.javacan.CanFrame.FD_NO_FLAGS
+import tel.schich.javacan.CanSocketOptions.FILTER
+import tel.schich.javacan.IsotpAddress._
+import tel.schich.javacan._
 import tel.schich.obd4s.can.CANObdBridge.{EffPriority, EffTestEquipmentAddress}
 import tel.schich.obd4s.obd.CurrentDataRequests.Support01To20
-import tel.schich.obd4s.obd.{CurrentDataRequests, ModeId, PidSupportReader}
 import tel.schich.obd4s.obd.StandardModes.CurrentData
+import tel.schich.obd4s.obd.{CurrentDataRequests, ModeId, PidSupportReader}
 
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 object ObdHelper extends StrictLogging {
+    val EffFunctionalFilter = new CanFilter(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, 0, EffTestEquipmentAddress), EFF_MASK_FUNCTIONAL_RESPONSE)
 
-    val EcuDetectionMessage: Array[Byte] = CurrentData.id.bytes ++ Support01To20.bytes
+    val EffFunctionalAddress: Int = effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL)
+    val EcuDetectionMessage: Array[Byte] = 0x02.toByte +: (CurrentData.id.bytes ++ Support01To20.bytes)
+    val SffEcuDetectionFrame: CanFrame = CanFrame.create(SFF_FUNCTIONAL_ADDRESS, FD_NO_FLAGS, EcuDetectionMessage)
+    val EffEcuDetectionFrame: CanFrame = CanFrame.create(EffFunctionalAddress, FD_NO_FLAGS, EcuDetectionMessage)
 
     def hexDump(bytes: Seq[Byte]): String = {
         bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
@@ -32,11 +40,18 @@ object ObdHelper extends StrictLogging {
         else s"0$hex"
     }
 
-    def checkResponse(requestSid: Byte, data: Array[Byte]): Result[Array[Byte]] =
+    def getMessage(data: ByteBuffer, offset: Int, length: Int): Array[Byte] = {
+        val out = Array.ofDim[Byte](length)
+        data.position(offset)
+        data.get(out)
+        out
+    }
+
+    def checkResponse(requestSid: Byte, data: ByteBuffer, offset: Int, length: Int): Result[Array[Byte]] =
         // there must be at least the response code, otherwise this is very weird.
-        if (ObdBridge.isMatchingResponse(requestSid, data)) Ok(data)
-        else if (ObdBridge.isPositiveResponse(data)) Error(InternalCauses.WrongSid)
-        else ObdBridge.getErrorCause(data) match {
+        if (ObdBridge.isMatchingResponse(requestSid, data, offset, length)) Ok(getMessage(data, offset, length))
+        else if (ObdBridge.isPositiveResponse(data, offset, length)) Error(InternalCauses.WrongSid)
+        else ObdBridge.getErrorCause(data, offset, length) match {
             case Some(cause) => Error(cause)
             case _ => Error(InternalCauses.UnknownResponse)
         }
@@ -61,34 +76,33 @@ object ObdHelper extends StrictLogging {
         }
     }
 
-    def detectECUAddresses(broker: ISOTPBroker, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
+    def detectECUAddresses(device: CanDevice, timeout: Duration): Set[Int] = {
         val addresses = mutable.Set[Int]()
-        val logger = new AddressLogger(addresses)
 
-        val sffChannel = broker.createChannel(SFF_FUNCTIONAL_ADDRESS, logger)
-        val effChannel = broker.createChannel(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL), logger)
+        val ch = CanChannels.newRawChannel(device)
 
-        sffChannel.send(EcuDetectionMessage)
-        effChannel.send(EcuDetectionMessage)
+        ch.setOption(FILTER, Array(IsotpAddress.SFF_FUNCTIONAL_FILTER, EffFunctionalFilter))
 
-        Thread.sleep(timeout.toMillis)
+        val selector = ch.provider().openSelector()
+        ch.register(selector, OP_READ)
 
-        sffChannel.closeNow()
-        effChannel.closeNow()
+        ch.write(SffEcuDetectionFrame)
+        ch.write(EffEcuDetectionFrame)
+
+        val startTime = System.currentTimeMillis()
+        while ((System.currentTimeMillis() - startTime) <= timeout.toMillis) {
+            val n = selector.select(timeout.toMillis)
+            if (n > 0) {
+                selector.selectedKeys().clear()
+                val frame = ch.read()
+                addresses += frame.getId
+            }
+        }
+
+        selector.close()
+        ch.close()
 
         addresses.toSet.map(returnAddress)
-    }
-
-    class AddressLogger(addresses: mutable.Set[Int]) extends FrameHandler {
-        override def handleSingleFrame(isotpChannel: ISOTPChannel, i: Int, bytes: Array[Byte]): Unit = addresses.add(i)
-
-        override def handleFirstFrame(isotpChannel: ISOTPChannel, i: Int, bytes: Array[Byte], i1: Int): Unit = addresses.add(i)
-
-        override def handleConsecutiveFrame(isotpChannel: ISOTPChannel, i: Int, bytes: Array[Byte], i1: Int): Unit = addresses.add(i)
-
-        override def handleNonISOTPFrame(canFrame: CanFrame): Unit = {}
-
-        override def checkTimeouts(l: Long): Unit = {}
     }
 
 }

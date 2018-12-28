@@ -1,11 +1,13 @@
 package tel.schich.obd4s.can
 
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit.{MILLISECONDS, SECONDS}
 import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture}
 
 import com.typesafe.scalalogging.StrictLogging
-import tel.schich.javacan.isotp.AggregatingFrameHandler.aggregateFrames
-import tel.schich.javacan.isotp.{ISOTPBroker, ISOTPChannel}
+import tel.schich.javacan.IsotpCanChannel.MAX_MESSAGE_LENGTH
+import tel.schich.javacan.{CanChannels, CanDevice, IsotpAddress, IsotpCanChannel}
+import tel.schich.javacan.util.IsotpBroker
 import tel.schich.obd4s.InternalCauses.ResponseTooShort
 import tel.schich.obd4s.ObdBridge.{getErrorCause, isMatchingResponse}
 import tel.schich.obd4s._
@@ -21,9 +23,11 @@ object CANObdBridge {
     val EffTestEquipmentAddress = 0xF1
 }
 
-class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
+class CANObdBridge(device: CanDevice, broker: IsotpBroker, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
 
-    private val channel = broker.createChannel(ecuAddress, aggregateFrames(this.handleResponse, this.handleIsotpTimeout))
+    private val channel = CanChannels.newIsotpChannel(device, ecuAddress, IsotpAddress.returnAddress(ecuAddress))
+    broker.addChannel(channel, this.handleResponse)
+    private val writeBuffer = ByteBuffer.allocateDirect(MAX_MESSAGE_LENGTH + 1)
 
     private val requestQueue: mutable.Queue[PendingRequest] = mutable.Queue()
 
@@ -175,7 +179,11 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
 
     private def sendNext(): Unit = synchronized {
         if (requestQueue.nonEmpty) {
-            channel.send(requestQueue.head.msg)
+            val next = requestQueue.head.msg
+            writeBuffer.rewind()
+            writeBuffer.put(next)
+            writeBuffer.rewind()
+            channel.write(writeBuffer, 0, next.length)
             cancelTimeout()
             val timeoutTask = new Runnable {
                 override def run(): Unit = timeoutInflightRequest()
@@ -191,14 +199,14 @@ class CANObdBridge(broker: ISOTPBroker, ecuAddress: Int, timeout: Duration = Dur
         entry
     }
 
-    private def handleResponse(ch: ISOTPChannel, source: Int, message: Array[Byte]): Unit = synchronized {
+    private def handleResponse(ch: IsotpCanChannel, message: ByteBuffer, offset: Int, length: Int): Unit = synchronized {
         // don't handle messages, when we don't have an in-flight request
         if (requestQueue.nonEmpty) {
             val req = requestQueue.head
-            if (isMatchingResponse(req.sid, message)) {
+            if (isMatchingResponse(req.sid, message, offset, length)) {
                 consume()
-                req.promise.success(Ok(message))
-            } else getErrorCause(message) match {
+                req.promise.success(Ok(ObdHelper.getMessage(message, offset, length)))
+            } else getErrorCause(message, offset, length) match {
                 case Some(cause) =>
                     consume()
                     // yep, it's an error
