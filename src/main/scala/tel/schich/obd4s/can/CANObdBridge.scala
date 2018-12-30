@@ -25,7 +25,7 @@ object CANObdBridge {
 
 class CANObdBridge(device: CanDevice, broker: IsotpBroker, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
 
-    private val channel = CanChannels.newIsotpChannel(device, ecuAddress, IsotpAddress.returnAddress(ecuAddress))
+    private val channel = CanChannels.newIsotpChannel(device, IsotpAddress.returnAddress(ecuAddress), ecuAddress)
     broker.addChannel(channel, this.handleResponse)
     private val writeBuffer = ByteBuffer.allocateDirect(MAX_MESSAGE_LENGTH + 1)
 
