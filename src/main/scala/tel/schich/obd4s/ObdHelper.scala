@@ -82,6 +82,7 @@ object ObdHelper extends StrictLogging {
         val ch = CanChannels.newRawChannel(device)
 
         ch.setOption(FILTER, Array(IsotpAddress.SFF_FUNCTIONAL_FILTER, EffFunctionalFilter))
+        ch.configureBlocking(false)
 
         val selector = ch.provider().openSelector()
         ch.register(selector, OP_READ)
