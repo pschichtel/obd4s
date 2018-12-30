@@ -15,18 +15,18 @@ object ObdBridge {
     val NegativeResponseCode: Byte = 0x7F.toByte
     val MaxRequestPids: Int = MAX_DATA_LENGTH - 2 // 2 = Single-Frame PCI Size + SID Size
 
-    def isMatchingResponse(requestSid: Byte, data: ByteBuffer, offset: Int, length: Int): Boolean =
-        isPositiveResponse(data, offset, length) && (requestSid + PositiveResponseBase) == data.get(offset)
+    def isMatchingResponse(requestSid: Byte, data: ByteBuffer): Boolean =
+        isPositiveResponse(data) && (requestSid + PositiveResponseBase) == data.get(data.position())
 
-    def isPositiveResponse(data: ByteBuffer, offset: Int, length: Int): Boolean =
-        length > 0 && data.get(offset) >= PositiveResponseBase
+    def isPositiveResponse(data: ByteBuffer): Boolean =
+        data.hasRemaining && data.get(data.position()) >= PositiveResponseBase
 
-    def isErrorResponse(data: ByteBuffer, offset: Int, length: Int): Boolean =
-        length > 0 && data.get(offset) == NegativeResponseCode
+    def isErrorResponse(data: ByteBuffer): Boolean =
+        data.hasRemaining && data.get(data.position()) == NegativeResponseCode
 
-    def getErrorCause(data: ByteBuffer, offset: Int, length: Int): Option[Cause] =
-        if (!ObdBridge.isErrorResponse(data, offset, length) || length < 2) None
-        else Some(ObdCauses.lookupByCode.getOrElse(data.get(offset + 1), InternalCauses.UnknownCause))
+    def getErrorCause(data: ByteBuffer): Option[Cause] =
+        if (!ObdBridge.isErrorResponse(data) || data.remaining() < 2) None
+        else Some(ObdCauses.lookupByCode.getOrElse(data.get(data.position() + 1), InternalCauses.UnknownCause))
 }
 
 trait ObdBridge extends StrictLogging {

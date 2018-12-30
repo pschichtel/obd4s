@@ -47,18 +47,17 @@ object ObdHelper extends StrictLogging {
         else s"0$hex"
     }
 
-    def getMessage(data: ByteBuffer, offset: Int, length: Int): Array[Byte] = {
-        val out = Array.ofDim[Byte](length)
-        data.position(offset)
+    def getMessage(data: ByteBuffer): Array[Byte] = {
+        val out = Array.ofDim[Byte](data.remaining())
         data.get(out)
         out
     }
 
-    def checkResponse(requestSid: Byte, data: ByteBuffer, offset: Int, length: Int): Result[Array[Byte]] =
+    def checkResponse(requestSid: Byte, data: ByteBuffer): Result[Array[Byte]] =
         // there must be at least the response code, otherwise this is very weird.
-        if (ObdBridge.isMatchingResponse(requestSid, data, offset, length)) Ok(getMessage(data, offset, length))
-        else if (ObdBridge.isPositiveResponse(data, offset, length)) Error(InternalCauses.WrongSid)
-        else ObdBridge.getErrorCause(data, offset, length) match {
+        if (ObdBridge.isMatchingResponse(requestSid, data)) Ok(getMessage(data))
+        else if (ObdBridge.isPositiveResponse(data)) Error(InternalCauses.WrongSid)
+        else ObdBridge.getErrorCause(data) match {
             case Some(cause) => Error(cause)
             case _ => Error(InternalCauses.UnknownResponse)
         }

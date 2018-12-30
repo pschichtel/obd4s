@@ -16,7 +16,7 @@ import tel.schich.obd4s.obd.{ModeId, PlainRequest, Reader}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 object CANObdBridge {
     val EffPriority = 0x18
@@ -180,10 +180,10 @@ class CANObdBridge(device: CanDevice, broker: IsotpBroker, ecuAddress: Int, time
     private def sendNext(): Unit = synchronized {
         if (requestQueue.nonEmpty) {
             val next = requestQueue.head.msg
-            writeBuffer.rewind()
+            writeBuffer.clear()
             writeBuffer.put(next)
-            writeBuffer.rewind()
-            channel.write(writeBuffer, 0, next.length)
+            writeBuffer.flip()
+            channel.write(writeBuffer)
             cancelTimeout()
             val timeoutTask = new Runnable {
                 override def run(): Unit = timeoutInflightRequest()
@@ -199,14 +199,14 @@ class CANObdBridge(device: CanDevice, broker: IsotpBroker, ecuAddress: Int, time
         entry
     }
 
-    private def handleResponse(ch: IsotpCanChannel, message: ByteBuffer, offset: Int, length: Int): Unit = synchronized {
+    private def handleResponse(ch: IsotpCanChannel, message: ByteBuffer): Unit = synchronized {
         // don't handle messages, when we don't have an in-flight request
         if (requestQueue.nonEmpty) {
             val req = requestQueue.head
-            if (isMatchingResponse(req.sid, message, offset, length)) {
+            if (isMatchingResponse(req.sid, message)) {
                 consume()
-                req.promise.success(Ok(ObdHelper.getMessage(message, offset, length)))
-            } else getErrorCause(message, offset, length) match {
+                req.promise.success(Ok(ObdHelper.getMessage(message)))
+            } else getErrorCause(message) match {
                 case Some(cause) =>
                     consume()
                     // yep, it's an error
