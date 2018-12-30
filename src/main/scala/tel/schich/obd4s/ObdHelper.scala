@@ -29,6 +29,13 @@ object ObdHelper extends StrictLogging {
         bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
     }
 
+    def hexDump(bytes: ByteBuffer, offset: Int, length: Int): String = {
+        (0 until length)
+            .map(i => bytes.get(offset + i))
+            .map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse)
+            .mkString(".")
+    }
+
     def addressAsHex(addr: Int): String = {
         val padLen = if (CanId.isExtended(addr)) 29/4+1 else 11/4+1
         addr.toHexString.toUpperCase.reverse.padTo(padLen, '0').reverse
