@@ -217,10 +217,6 @@ class CANObdBridge(device: CanDevice, broker: IsotpBroker, ecuAddress: Int, time
         }
     }
 
-    private def handleIsotpTimeout(source: Int): Unit = synchronized {
-        consume().promise.failure(new TimeoutException)
-    }
-
     private def timeoutInflightRequest(): Unit = synchronized {
         consume().promise.success(Error(InternalCauses.Timeout))
     }
