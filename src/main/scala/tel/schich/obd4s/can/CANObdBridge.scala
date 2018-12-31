@@ -23,10 +23,10 @@ object CANObdBridge {
     val EffTestEquipmentAddress = 0xF1
 }
 
-class CANObdBridge(device: CanDevice, broker: IsotpListener, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
+class CANObdBridge(device: CanDevice, listener: IsotpListener, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
 
     private val channel = CanChannels.newIsotpChannel(device, IsotpAddress.returnAddress(ecuAddress), ecuAddress)
-    broker.addChannel(channel, this.handleResponse)
+    listener.addChannel(channel, this.handleResponse)
     private val writeBuffer = ByteBuffer.allocateDirect(MAX_MESSAGE_LENGTH + 1)
 
     private val requestQueue: mutable.Queue[PendingRequest] = mutable.Queue()
