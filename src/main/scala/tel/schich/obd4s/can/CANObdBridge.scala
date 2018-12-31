@@ -7,7 +7,7 @@ import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFutur
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.IsotpCanChannel.MAX_MESSAGE_LENGTH
 import tel.schich.javacan.{CanChannels, CanDevice, IsotpAddress, IsotpCanChannel}
-import tel.schich.javacan.util.IsotpBroker
+import tel.schich.javacan.util.IsotpListener
 import tel.schich.obd4s.InternalCauses.ResponseTooShort
 import tel.schich.obd4s.ObdBridge.{getErrorCause, isMatchingResponse}
 import tel.schich.obd4s._
@@ -23,7 +23,7 @@ object CANObdBridge {
     val EffTestEquipmentAddress = 0xF1
 }
 
-class CANObdBridge(device: CanDevice, broker: IsotpBroker, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
+class CANObdBridge(device: CanDevice, broker: IsotpListener, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
 
     private val channel = CanChannels.newIsotpChannel(device, IsotpAddress.returnAddress(ecuAddress), ecuAddress)
     broker.addChannel(channel, this.handleResponse)
