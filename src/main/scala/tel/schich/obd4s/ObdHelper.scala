@@ -2,12 +2,16 @@ package tel.schich.obd4s
 
 import java.nio.ByteBuffer
 import java.nio.channels.SelectionKey.OP_READ
+import java.nio.channels.spi.SelectorProvider
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.ThreadFactory
 
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.CanFrame.FD_NO_FLAGS
 import tel.schich.javacan.CanSocketOptions.FILTER
 import tel.schich.javacan.IsotpAddress._
 import tel.schich.javacan._
+import tel.schich.javacan.util.CanBroker
 import tel.schich.obd4s.can.CANObdBridge.{EffPriority, EffTestEquipmentAddress}
 import tel.schich.obd4s.obd.CurrentDataRequests.Support01To20
 import tel.schich.obd4s.obd.StandardModes.CurrentData
@@ -15,7 +19,7 @@ import tel.schich.obd4s.obd.{CurrentDataRequests, ModeId, PidSupportReader}
 
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, blocking}
 
 object ObdHelper extends StrictLogging {
     val EffFunctionalFilter = new CanFilter(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, 0, EffTestEquipmentAddress), EFF_MASK_FUNCTIONAL_RESPONSE)
@@ -82,34 +86,22 @@ object ObdHelper extends StrictLogging {
         }
     }
 
-    def detectECUAddresses(device: CanDevice, timeout: Duration): Set[Int] = {
+    def detectECUAddresses(device: CanDevice, threadFactory: ThreadFactory, provider: SelectorProvider, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
         val addresses = mutable.Set[Int]()
+        val broker = CanBroker.functional(threadFactory, provider, java.time.Duration.of(timeout.toMillis, ChronoUnit.MILLIS))
+        broker.addDevice(device, (_, frame) => {
+            addresses += frame.getId
+        })
 
-        val ch = CanChannels.newRawChannel(device)
-
-        ch.setOption(FILTER, Array(IsotpAddress.SFF_FUNCTIONAL_FILTER, EffFunctionalFilter))
-        ch.configureBlocking(false)
-
-        val selector = ch.provider().openSelector()
-        ch.register(selector, OP_READ)
-
-        ch.write(SffEcuDetectionFrame)
-        ch.write(EffEcuDetectionFrame)
-
-        val startTime = System.currentTimeMillis()
-        while ((System.currentTimeMillis() - startTime) <= timeout.toMillis) {
-            val n = selector.select(timeout.toMillis)
-            if (n > 0) {
-                selector.selectedKeys().clear()
-                val frame = ch.read()
-                addresses += frame.getId
+        broker.send(SffEcuDetectionFrame)
+        try {
+            blocking {
+                Thread.sleep(timeout.toMillis)
             }
+        } finally {
+            broker.close()
         }
-
-        selector.close()
-        ch.close()
 
         addresses.toSet.map(returnAddress)
     }
-
 }
