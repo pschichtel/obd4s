@@ -95,6 +95,7 @@ object ObdHelper extends StrictLogging {
         })
 
         broker.send(SffEcuDetectionFrame)
+        broker.send(EffEcuDetectionFrame)
         try {
             blocking {
                 Thread.sleep(timeout.toMillis)
