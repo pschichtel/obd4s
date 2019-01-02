@@ -1,14 +1,12 @@
 package tel.schich.obd4s
 
 import java.nio.ByteBuffer
-import java.nio.channels.SelectionKey.OP_READ
 import java.nio.channels.spi.SelectorProvider
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.ThreadFactory
 
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.CanFrame.FD_NO_FLAGS
-import tel.schich.javacan.CanSocketOptions.FILTER
 import tel.schich.javacan.IsotpAddress._
 import tel.schich.javacan._
 import tel.schich.javacan.util.CanBroker
@@ -88,7 +86,10 @@ object ObdHelper extends StrictLogging {
 
     def detectECUAddresses(device: CanDevice, threadFactory: ThreadFactory, provider: SelectorProvider, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
         val addresses = mutable.Set[Int]()
-        val broker = CanBroker.functional(threadFactory, provider, java.time.Duration.of(timeout.toMillis, ChronoUnit.MILLIS))
+        val broker = new CanBroker(threadFactory, provider, java.time.Duration.of(timeout.toMillis, ChronoUnit.MILLIS))
+        broker.addFilter(SFF_FUNCTIONAL_FILTER)
+        broker.addFilter(EffFunctionalFilter)
+
         broker.addDevice(device, (_, frame) => {
             addresses += frame.getId
         })
