@@ -12,6 +12,8 @@ sealed class ObdCause(val id: Int, val reason: String) extends EnumEntry with Ca
   */
 object ObdCauses extends Enum[ObdCause] with Causes[ObdCause] {
 
+    val NegativeResponseCode: Byte = 0x7F.toByte
+
     case object GeneralReject extends ObdCause(0x10, "General reject")
     case object ServiceNotSupported extends ObdCause(0x11, "Service Not Supported")
     case object SubFunctionNotSupportedInvalidFormat extends ObdCause(0x12, "Sub Function Not Supported - Invalid Format")

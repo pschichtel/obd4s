@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.CanFrame.MAX_DATA_LENGTH
+import tel.schich.obd4s.obd.ObdCauses.NegativeResponseCode
 import tel.schich.obd4s.obd._
 
 import scala.concurrent.Future
@@ -12,7 +13,6 @@ object ObdBridge {
     val SupportRangeSize: Int = 0x20
     val MaximumPid: Int = 255
     val PositiveResponseBase: Byte = 0x40
-    val NegativeResponseCode: Byte = 0x7F.toByte
     val MaxRequestPids: Int = MAX_DATA_LENGTH - 2 // 2 = Single-Frame PCI Size + SID Size
 
     def isMatchingResponse(requestSid: Byte, data: ByteBuffer): Boolean =
