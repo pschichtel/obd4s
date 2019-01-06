@@ -92,7 +92,6 @@ object FuelTypeReader extends SingleByteReader[FuelType] {
         0x15 -> "Hybrid running electric and combustion engine",
         0x16 -> "Hybrid Regenerative",
         0x17 -> "Bifuel running diesel"
-
     )
 
     override def read(a: Int): Result[FuelType] = {
