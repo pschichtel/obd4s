@@ -9,6 +9,8 @@ sealed class ObdCause(val id: Int, val reason: String) extends EnumEntry with Ca
   * This enum contains definitions of non-vendor specific error response codes.
   * Nothing of this is based on any standards document, but purely on various websites.
   * Generally the lower the ID is, the more likely it is that the information is correct.
+  *
+  * @see http://blog.perquin.com/prj/obdii/
   */
 object ObdCauses extends Enum[ObdCause] with Causes[ObdCause] {
 
