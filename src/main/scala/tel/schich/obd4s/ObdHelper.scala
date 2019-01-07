@@ -84,7 +84,7 @@ object ObdHelper extends StrictLogging {
         }
     }
 
-    def detectECUAddresses(device: CanDevice, threadFactory: ThreadFactory, provider: SelectorProvider, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
+    def detectECUAddresses(device: NetworkDevice, threadFactory: ThreadFactory, provider: SelectorProvider, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
         val addresses = mutable.Set[Int]()
         val broker = new CanBroker(threadFactory, provider, java.time.Duration.of(timeout.toMillis, ChronoUnit.MILLIS))
         broker.addFilter(SFF_FUNCTIONAL_FILTER)
