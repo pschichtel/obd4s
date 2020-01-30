@@ -2,20 +2,21 @@ package tel.schich.obd4s.obd
 
 import tel.schich.obd4s.{Error, InternalCauses, Result}
 
-import scala.collection.SeqView
+import scala.collection.IndexedSeqView
 
 trait Reader[T] {
-    def read(buf: IndexedSeq[Byte], offset: Int): Result[(T, Int)]
+    type BufferView = IndexedSeqView[Byte]
+
+    def read(buf: BufferView, offset: Int): Result[(T, Int)]
     // simple default strategy: select the last
     def merge(left: T, right: T): T = right
 }
 
 abstract class FixedLengthReader[T](val length: Int) extends Reader[T] {
-    type BufferView = SeqView[Byte, IndexedSeq[Byte]]
 
-    final override def read(buf: IndexedSeq[Byte], offset: Int): Result[(T, Int)] = {
+    final override def read(buf: BufferView, offset: Int): Result[(T, Int)] = {
         if ((buf.length - offset) < length) Error(InternalCauses.ResponseTooShort)
-        else read(buf.view(offset, offset + length)).map(r => (r, length))
+        else read(buf.view.slice(offset, offset + length)).map(r => (r, length))
     }
 
     def read(buf: BufferView): Result[T]

@@ -145,7 +145,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
     private def readPid[A](pid: Int, reader: Reader[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
         if (offset >= buf.length) Error(InternalCauses.ResponseTooShort)
         else if ((buf(offset) & 0xFF) != pid) Error(PidMismatch(pid, offset, buf))
-        else reader.read(buf, offset + 1) map {
+        else reader.read(buf.view, offset + 1) map {
             case (result, bytesRead) => (result, bytesRead + 1)
         }
     }

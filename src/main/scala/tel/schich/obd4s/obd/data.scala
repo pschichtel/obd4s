@@ -423,7 +423,7 @@ object IntReader extends SingleIntReader[Int] {
 }
 
 case class StringReader(charset: Charset, length: Int = -1, trimControlChars: Boolean = true) extends Reader[String] with StrictLogging {
-    override def read(buf: IndexedSeq[Byte], offset: Int): Result[(String, Int)] = {
+    override def read(buf: BufferView, offset: Int): Result[(String, Int)] = {
         val availableBytes = buf.length - offset
         val len =
             if (length >= 0) length
@@ -432,7 +432,7 @@ case class StringReader(charset: Charset, length: Int = -1, trimControlChars: Bo
             Error(ResponseTooShort)
         } else {
             try {
-                logger.info(s"String read: ${ObdHelper.hexDump(buf.view(offset, offset + len))}")
+                logger.info(s"String read: ${ObdHelper.hexDump(buf.view.slice(offset, offset + len))}")
                 val str = new String(buf.toArray, offset, len, charset)
                 val finalStr =
                     if (trimControlChars) str.dropWhile(_.toInt < 32).reverse.dropWhile(_.toInt < 32).reverse

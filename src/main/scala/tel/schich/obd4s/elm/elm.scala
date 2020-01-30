@@ -10,6 +10,7 @@ import tel.schich.obd4s.elm.ElmCommands.CANReceiveFilter
 import tel.schich.obd4s.obd.{ModeId, PlainRequest, Reader}
 
 import scala.annotation.tailrec
+import scala.collection.IndexedSeqView
 import scala.concurrent.{ExecutionContext, Future}
 
 class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) extends ObdBridge with StrictLogging {
@@ -52,10 +53,10 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         doRead(Vector.empty, Vector.empty)
     }
 
-    private def parseObdResponse(line: String): Result[(Int, Int, IndexedSeq[Byte])] = {
+    private def parseObdResponse(line: String): Result[(Int, Int, IndexedSeqView[Byte])] = {
         val plainHex = line.filterNot(_.isWhitespace)
         val data = (plainHex.indices by 2).map(i => java.lang.Short.parseShort("" + plainHex(i) + plainHex(i + 1), 16).toByte).toArray
-        if (data.length >= 2) Ok((data(0) & 0xFF, data(1) & 0xFF, data.view(2, data.length)))
+        if (data.length >= 2) Ok((data(0) & 0xFF, data(1) & 0xFF, data.view.slice(2, data.length)))
         else Error(ResponseTooShort)
     }
 
