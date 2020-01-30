@@ -25,7 +25,7 @@ object ObdHelper extends StrictLogging {
     val EffFunctionalAddress: Int = effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL)
     val EcuDetectionMessage: Array[Byte] = 0x02.toByte +: (CurrentData.id.bytes ++ Support01To20.bytes)
     val SffEcuDetectionFrame: CanFrame = CanFrame.create(SFF_FUNCTIONAL_ADDRESS, FD_NO_FLAGS, EcuDetectionMessage)
-    val EffEcuDetectionFrame: CanFrame = CanFrame.create(EffFunctionalAddress, FD_NO_FLAGS, EcuDetectionMessage)
+    val EffEcuDetectionFrame: CanFrame = CanFrame.createExtended(EffFunctionalAddress, FD_NO_FLAGS, EcuDetectionMessage)
 
     def hexDump(bytes: Iterable[Byte]): String = {
         bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")

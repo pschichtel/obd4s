@@ -13,7 +13,7 @@ resolvers += Resolver.mavenLocal
 val blueCoveVersion = "2.1.0"
 
 libraryDependencies ++= Seq(
-    "tel.schich" % "javacan" % "2.0.0",
+    "tel.schich" % "javacan" % "3.0.0-SNAPSHOT" changing(),
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2", // nice logging
     "io.suzaku" %% "boopickle" % "1.3.1", // binary serialization
     "com.beachape" %% "enumeratum" % "1.5.15", // nicer enums
