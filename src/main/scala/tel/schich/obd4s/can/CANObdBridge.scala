@@ -155,7 +155,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         val sidByte = (mode.id & 0xFF).toByte
         val msg = (mode.id +: pids).map(p => (p & 0xFF).toByte).toArray
 
-        val promise = Promise[Result[Array[Byte]]]
+        val promise = Promise[Result[Array[Byte]]]()
         enqueue(PendingRequest(sidByte, msg, promise))
 
         promise.future
