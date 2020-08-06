@@ -1,14 +1,22 @@
 name := "obd4s"
-
 organization := "tel.schich"
-
 version := "1.0.0-SNAPSHOT"
 
-scalaVersion := "2.13.3"
-
-publishMavenStyle := true
+homepage := Some(url("https://github.com/pschichtel/obd4s"))
+scmInfo := Some(ScmInfo(url("https://github.com/pschichtel/obd4s"), "git@github.com:pschichtel/obd4s.git"))
+developers := List(Developer("pschichtel", "Phillip Schichtel", "phillip@schich.tel", url("https://schich.tel")))
+licenses += ("MIT", url("https://raw.githubusercontent.com/pschichtel/obd4s/master/LICENSE"))
 
 resolvers += Resolver.mavenLocal
+publishMavenStyle := true
+publishTo := Some(
+    if (isSnapshot.value)
+        Opts.resolver.sonatypeSnapshots
+    else
+        Opts.resolver.sonatypeStaging
+)
+
+scalaVersion := "2.13.3"
 
 val blueCoveVersion = "2.1.0"
 
