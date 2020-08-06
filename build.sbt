@@ -1,6 +1,7 @@
+import ReleaseTransformations._
+
 name := "obd4s"
 organization := "tel.schich"
-version := "1.0.1-SNAPSHOT"
 
 homepage := Some(url("https://github.com/pschichtel/obd4s"))
 scmInfo := Some(ScmInfo(url("https://github.com/pschichtel/obd4s"), "git@github.com:pschichtel/obd4s.git"))
@@ -31,3 +32,19 @@ libraryDependencies ++= Seq(
 )
 
 scalacOptions ++= Seq("-unchecked", "-deprecation")
+
+releaseCrossBuild := true
+releaseProcess := Seq[ReleaseStep](
+    checkSnapshotDependencies,
+    inquireVersions,
+    runClean,
+    runTest,
+    setReleaseVersion,
+    commitReleaseVersion,
+    tagRelease,
+    releaseStepCommandAndRemaining("+publishSigned"),
+    setNextVersion,
+    commitNextVersion,
+    releaseStepCommand("sonatypeRelease"),
+    pushChanges
+)
