@@ -1,6 +1,6 @@
 name := "obd4s"
 organization := "tel.schich"
-version := "1.0.0-SNAPSHOT"
+version := "1.0.0"
 
 homepage := Some(url("https://github.com/pschichtel/obd4s"))
 scmInfo := Some(ScmInfo(url("https://github.com/pschichtel/obd4s"), "git@github.com:pschichtel/obd4s.git"))
