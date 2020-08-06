@@ -1,1 +1,1 @@
-version in ThisScope := "1.0.1-SNAPSHOT"
+version in ThisBuild := "1.0.1"
