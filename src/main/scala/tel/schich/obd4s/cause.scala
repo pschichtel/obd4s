@@ -28,7 +28,7 @@ sealed class InternalCause(val id: Int, val reason: String) extends EnumEntry wi
 object InternalCauses extends Enum[InternalCause] with Causes[InternalCause] {
     case object UnknownCause extends InternalCause(0, "Unknown error!")
     case object FilteredAway extends InternalCause(1, "Filter did not apply!")
-    case object ResponseTooShort extends InternalCause(2, "Filter did not apply!")
+    case object ResponseTooShort extends InternalCause(2, "The response had too little data!")
     case object WrongSid extends InternalCause(3, "Successful response, but for the wrong SID!")
     case object UnknownResponse extends InternalCause(4, "ECU returned an unknown response!")
     case object Timeout extends InternalCause(5, "Request timed out!")

@@ -11,7 +11,7 @@ import tel.schich.javacan.util.IsotpListener
 import tel.schich.obd4s.InternalCauses.ResponseTooShort
 import tel.schich.obd4s.ObdBridge.{getErrorCause, isMatchingResponse}
 import tel.schich.obd4s._
-import tel.schich.obd4s.obd.{ModeId, PlainRequest, Reader}
+import tel.schich.obd4s.obd.{ServiceId, PlainRequest, Reader}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -35,35 +35,39 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
 
     private var inFlightTimeout: ScheduledFuture[_] = _
 
-    override def executeRequest(mode: ModeId): Future[Unit] = {
-        execAll(mode, Nil).map(_ => ())
+    override def executeRequest[A](service: ServiceId, reader: Reader[A]): Future[Result[A]] = {
+        execAll(service, Nil).map { result =>
+            result
+                .flatMap(buf => reader.read(buf.view, 0))
+                .map(_._1)
+        }
     }
 
-    override def executeRequest[A](mode: ModeId, pid: Int, reader: Reader[A]): Future[Result[A]] = {
-        execAll(mode, Seq(pid)).map { result =>
+    override def executeRequest[A](service: ServiceId, pid: Int, reader: Reader[A]): Future[Result[A]] = {
+        execAll(service, Seq(pid)).map { result =>
             result
-                .flatMap { buf => readPid(pid, reader, buf, mode.length) }
+                .flatMap { buf => readPid(pid, reader, buf, service.length) }
                 .map(_._1)
         }
     }
 
 
-    override def executeRequest[A, B](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B]): Future[Result[(A, B)]] = {
-        execAll(mode, Seq(a.pid, b.pid)).map { result =>
+    override def executeRequest[A, B](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B]): Future[Result[(A, B)]] = {
+        execAll(service, Seq(a.pid, b.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (ar, oa) <- readPid(a, buf, service.length)
                     (br, _ ) <- readPid(b, buf, oa)
                 } yield (ar, br)
             }
         }
     }
 
-    override def executeRequest[A, B, C](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C]): Future[Result[(A, B, C)]] = {
-        execAll(mode, Seq(a.pid, b.pid, c.pid)).map { result =>
+    override def executeRequest[A, B, C](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C]): Future[Result[(A, B, C)]] = {
+        execAll(service, Seq(a.pid, b.pid, c.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (ar, oa) <- readPid(a, buf, service.length)
                     (br, ob) <- readPid(b, buf, oa)
                     (cr, _ ) <- readPid(c, buf, ob)
                 } yield (ar, br, cr)
@@ -71,11 +75,11 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         }
     }
 
-    override def executeRequest[A, B, C, D](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D]): Future[Result[(A, B, C, D)]] = {
-        execAll(mode, Seq(a.pid, b.pid, c.pid, d.pid)).map { result =>
+    override def executeRequest[A, B, C, D](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D]): Future[Result[(A, B, C, D)]] = {
+        execAll(service, Seq(a.pid, b.pid, c.pid, d.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (ar, oa) <- readPid(a, buf, service.length)
                     (br, ob) <- readPid(b, buf, oa)
                     (cr, oc) <- readPid(c, buf, ob)
                     (dr, _ ) <- readPid(d, buf, oc)
@@ -84,11 +88,11 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         }
     }
 
-    override def executeRequest[A, B, C, D, E](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E]): Future[Result[(A, B, C, D, E)]] = {
-        execAll(mode, Seq(a.pid, b.pid, c.pid, d.pid, e.pid)).map { result =>
+    override def executeRequest[A, B, C, D, E](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E]): Future[Result[(A, B, C, D, E)]] = {
+        execAll(service, Seq(a.pid, b.pid, c.pid, d.pid, e.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (ar, oa) <- readPid(a, buf, service.length)
                     (br, ob) <- readPid(b, buf, oa)
                     (cr, oc) <- readPid(c, buf, ob)
                     (dr, od) <- readPid(d, buf, oc)
@@ -98,11 +102,11 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         }
     }
 
-    override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E], f: PlainRequest[F]): Future[Result[(A, B, C, D, E, F)]] = {
-        execAll(mode, Seq(a.pid, b.pid, c.pid, d.pid, e.pid, f.pid)).map { result =>
+    override def executeRequest[A, B, C, D, E, F](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E], f: PlainRequest[F]): Future[Result[(A, B, C, D, E, F)]] = {
+        execAll(service, Seq(a.pid, b.pid, c.pid, d.pid, e.pid, f.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, mode.length)
+                    (ar, oa) <- readPid(a, buf, service.length)
                     (br, ob) <- readPid(b, buf, oa)
                     (cr, oc) <- readPid(c, buf, ob)
                     (dr, od) <- readPid(d, buf, oc)
@@ -113,7 +117,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         }
     }
 
-    override def executeRequests[A](mode: ModeId, reqs: Seq[PlainRequest[_ <: A]]): Future[Result[Seq[_ <: A]]] = {
+    override def executeRequests[A](service: ServiceId, reqs: Seq[PlainRequest[_ <: A]]): Future[Result[Seq[_ <: A]]] = {
 
         @tailrec
         def parseResponse(buf: Array[Byte], offset: Int, reqs: Seq[PlainRequest[_ <: A]], result: Result[Seq[_ <: A]]): Result[Seq[_ <: A]] = {
@@ -133,8 +137,8 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
             }
         }
 
-        execAll(mode, reqs.map(_.pid)).map { result =>
-            result.flatMap { buf => parseResponse(buf, mode.length, reqs, Ok(Seq.empty)) }
+        execAll(service, reqs.map(_.pid)).map { result =>
+            result.flatMap { buf => parseResponse(buf, service.length, reqs, Ok(Seq.empty)) }
         }
     }
 
@@ -150,7 +154,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         }
     }
 
-    private def execAll(mode: ModeId, pids: Seq[Int]): Future[Result[Array[Byte]]] = {
+    private def execAll(mode: ServiceId, pids: Seq[Int]): Future[Result[Array[Byte]]] = {
 
         val sidByte = (mode.id & 0xFF).toByte
         val msg = (mode.id +: pids).map(p => (p & 0xFF).toByte).toArray

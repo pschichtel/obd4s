@@ -13,7 +13,7 @@ import tel.schich.javacan.util.CanBroker
 import tel.schich.obd4s.can.CANObdBridge.{EffPriority, EffTestEquipmentAddress}
 import tel.schich.obd4s.obd.CurrentDataRequests.Support01To20
 import tel.schich.obd4s.obd.StandardModes.CurrentData
-import tel.schich.obd4s.obd.{CurrentDataRequests, ModeId, PidSupportReader}
+import tel.schich.obd4s.obd.{CurrentDataRequests, ServiceId, PidSupportReader}
 
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
@@ -77,7 +77,7 @@ object ObdHelper extends StrictLogging {
 
 
 
-    def detectSupport(bridge: ObdBridge, service: ModeId = CurrentData.id)(implicit ec: ExecutionContext): Future[Result[Int => Boolean]] = {
+    def detectSupport(bridge: ObdBridge, service: ServiceId = CurrentData.id)(implicit ec: ExecutionContext): Future[Result[Int => Boolean]] = {
 
         def scanSupport(pid: Int, currentSet: Vector[Boolean]): Future[Result[Vector[Boolean]]] = {
             if (currentSet.nonEmpty && !currentSet.last) Future.successful(Ok(currentSet))

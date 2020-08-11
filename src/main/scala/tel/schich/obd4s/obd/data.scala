@@ -8,6 +8,7 @@ import tel.schich.obd4s.InternalCauses.{ReadError, ResponseTooShort}
 import tel.schich.obd4s._
 import tel.schich.obd4s.obd.DistanceReader.DistanceUnit
 import tel.schich.obd4s.obd.FuelSystemStatus.Unavailable
+import tel.schich.obd4s.obd.dtc.DiagnosticTroubleCode
 
 import scala.concurrent.duration.TimeUnit
 import scala.util.control.NonFatal
@@ -445,4 +446,18 @@ case class StringReader(charset: Charset, length: Int = -1, trimControlChars: Bo
             }
         }
     }
+}
+
+object DiagnosticTroubleCodeReader extends Reader[Seq[DiagnosticTroubleCode]] {
+    override def read(buf: BufferView, offset: Int): Result[(Seq[DiagnosticTroubleCode], Int)] = {
+        val elemCount = (offset - buf.length) / 2
+        val codes = (0 until (elemCount / 2)).map { i =>
+            DiagnosticTroubleCode(buf(i * 2), buf(i * 2 + 1))
+        }
+        Ok((codes, elemCount * 2))
+    }
+}
+
+object UnitReader extends Reader[Unit] {
+    override def read(buf: UnitReader.BufferView, offset: Int): Result[(Unit, Int)] = Ok(((), 0))
 }

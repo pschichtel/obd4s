@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import tel.schich.obd4s.InternalCauses.{ResponseTooShort, UnknownResponse}
 import tel.schich.obd4s._
 import tel.schich.obd4s.elm.ElmCommands.CANReceiveFilter
-import tel.schich.obd4s.obd.{ModeId, PlainRequest, Reader}
+import tel.schich.obd4s.obd.{ServiceId, PlainRequest, Reader}
 
 import scala.annotation.tailrec
 import scala.collection.IndexedSeqView
@@ -60,8 +60,8 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         else Error(ResponseTooShort)
     }
 
-    private def parseElmResponse(lines: Vector[String], mode: ModeId, pid: Int): Result[Vector[(String, String)]] = {
-        val expectedResponseMode = mode.response
+    private def parseElmResponse(lines: Vector[String], service: ServiceId, pid: Option[Int]): Result[Vector[(String, String)]] = {
+        val expectedResponseMode = service.response
         val responsePrefix = obdRequest(expectedResponseMode, pid)
 
         lines.map(_.toLowerCase) match {
@@ -88,27 +88,32 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
 
     private def padHex(hex: String) = "0" * (hex.length & 1) + hex
     private def toHex(i: Int): String = padHex(i.toHexString)
-    private def obdRequest(mode: Int, pid: Int) =
-        if (pid < 0) s"${toHex(mode)}"
-        else s"${toHex(mode)}${toHex(pid)}"
+    private def obdRequest(service: Int, parameter: Option[Int]) = parameter match {
+        case Some(pid) => s"${toHex(service)}${toHex(pid)}"
+        case None => s"${toHex(service)}"
+    }
     private def isSupportPid(pid: Int) = pid % ObdBridge.SupportRangeSize == 0
-    private def optimizedRequest(mode: Int, pid: Int) = {
+    private def optimizedRequest(mode: Int, pid: Option[Int]) = {
         val request = obdRequest(mode, pid)
         val context = (mode, pid)
         s"${request}1" // TODO replace constant 1 by proper calculation
     }
 
 
-    override def executeRequest(mode: ModeId): Future[Unit] = {
-        val request = obdRequest(mode.id, -1)
-        run(transport, request)
-        Future.successful(())
+    override def executeRequest[T](service: ServiceId, reader: Reader[T]): Future[Result[T]] = {
+        val request = obdRequest(service.id, None)
+        val rawResponse = run(transport, request)
+        processResponse(rawResponse, service, None, reader)
     }
 
-    override def executeRequest[T](mode: ModeId, pid: Int, reader: Reader[T]): Future[Result[T]] = {
-        val request = optimizedRequest(mode.id, pid)
+    override def executeRequest[T](service: ServiceId, parameter: Int, reader: Reader[T]): Future[Result[T]] = {
+        val request = optimizedRequest(service.id, Some(parameter))
         val rawResponse = run(transport, request)
-        val parsedResponses = parseElmResponse(rawResponse, mode, pid)
+        processResponse(rawResponse, service, Some(parameter), reader)
+    }
+
+    private def processResponse[T](rawResponse: Vector[String], service: ServiceId, parameter: Option[Int], reader: Reader[T]): Future[Result[T]] = {
+        val parsedResponses = parseElmResponse(rawResponse, service, parameter)
 
         val result = parsedResponses.flatMap {
             case Vector((header, payload)) =>
@@ -121,17 +126,17 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
     }
 
 
-    override def executeRequest[A, B](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B]): Future[Result[(A, B)]] = ???
+    override def executeRequest[A, B](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B]): Future[Result[(A, B)]] = ???
 
-    override def executeRequest[A, B, C](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C]): Future[Result[(A, B, C)]] = ???
+    override def executeRequest[A, B, C](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C]): Future[Result[(A, B, C)]] = ???
 
-    override def executeRequest[A, B, C, D](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D]): Future[Result[(A, B, C, D)]] = ???
+    override def executeRequest[A, B, C, D](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D]): Future[Result[(A, B, C, D)]] = ???
 
-    override def executeRequest[A, B, C, D, E](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E]): Future[Result[(A, B, C, D, E)]] = ???
+    override def executeRequest[A, B, C, D, E](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E]): Future[Result[(A, B, C, D, E)]] = ???
 
-    override def executeRequest[A, B, C, D, E, F](mode: ModeId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E], f: PlainRequest[F]): Future[Result[(A, B, C, D, E, F)]] = ???
+    override def executeRequest[A, B, C, D, E, F](service: ServiceId, a: PlainRequest[A], b: PlainRequest[B], c: PlainRequest[C], d: PlainRequest[D], e: PlainRequest[E], f: PlainRequest[F]): Future[Result[(A, B, C, D, E, F)]] = ???
 
-    override def executeRequests[A](mode: ModeId, reqs: Seq[PlainRequest[_ <: A]]): Future[Result[Seq[_ <: A]]] = ???
+    override def executeRequests[A](service: ServiceId, reqs: Seq[PlainRequest[_ <: A]]): Future[Result[Seq[_ <: A]]] = ???
 
     private def run(transport: ElmTransport, cmd: String, readDelay: Long = 0): Vector[String] = synchronized {
         ElmTransport.deplete(transport)
