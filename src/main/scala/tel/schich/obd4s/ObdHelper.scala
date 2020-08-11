@@ -23,12 +23,21 @@ object ObdHelper extends StrictLogging {
     val EffFunctionalFilter = new CanFilter(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, 0, EffTestEquipmentAddress), EFF_MASK_FUNCTIONAL_RESPONSE)
 
     val EffFunctionalAddress: Int = effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL)
-    val EcuDetectionMessage: Array[Byte] = 0x02.toByte +: (CurrentData.id.bytes ++ Support01To20.bytes)
+    val EcuDetectionMessage: Array[Byte] = isotpSingleFrame(CurrentData.id.bytes ++ Support01To20.bytes)
     val SffEcuDetectionFrame: CanFrame = CanFrame.create(SFF_FUNCTIONAL_ADDRESS, FD_NO_FLAGS, EcuDetectionMessage)
     val EffEcuDetectionFrame: CanFrame = CanFrame.createExtended(EffFunctionalAddress, FD_NO_FLAGS, EcuDetectionMessage)
 
     def hexDump(bytes: Iterable[Byte]): String = {
         bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
+    }
+
+    def isotpSingleFrame(payload: Array[Byte]): Array[Byte] = {
+        val maxBytes = 7
+        if (payload.length >= maxBytes) {
+            throw new IllegalArgumentException(s"Payload may only be $maxBytes bytes long")
+        }
+
+        payload.length.toByte +: payload
     }
 
     def hexDump(bytes: ByteBuffer, offset: Int, length: Int): String = {
