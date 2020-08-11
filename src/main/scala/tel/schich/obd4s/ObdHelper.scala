@@ -32,12 +32,14 @@ object ObdHelper extends StrictLogging {
     }
 
     def isotpSingleFrame(payload: Array[Byte]): Array[Byte] = {
-        val maxBytes = 7
+        val maxBytes = CanFrame.MAX_DATA_LENGTH - 1
         if (payload.length >= maxBytes) {
             throw new IllegalArgumentException(s"Payload may only be $maxBytes bytes long")
         }
-
-        payload.length.toByte +: payload
+        val frame = Array.fill[Byte](CanFrame.MAX_DATA_LENGTH)(0)
+        frame(0) = payload.length.toByte
+        payload.copyToArray(frame, 1)
+        frame
     }
 
     def hexDump(bytes: ByteBuffer, offset: Int, length: Int): String = {
