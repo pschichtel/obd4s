@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit.{MINUTES, SECONDS}
 import enumeratum.{Enum, EnumEntry}
 import tel.schich.obd4s.obd.StandardModes.{ClearTroubleCodes, CurrentData, PendingTroubleCodes, PermanentTroubleCodes, ShowTroubleCodes, VehicleInfo}
 
-sealed abstract class PredefinedRequest[T, M <: Service](mode: M, pid: Int, reader: Reader[T]) extends ParameterRequest(mode, pid, reader) with EnumEntry {
+sealed abstract class PredefinedRequest[T, S <: Service](service: S, pid: Int, reader: Reader[T]) extends ParameterRequest(service, pid, reader) with EnumEntry {
     override val bytes: Array[Byte] = Array(pid.toByte)
 }
 
@@ -109,7 +109,7 @@ object CurrentDataRequests extends Enum[PredefinedRequest[_ <: Response, Current
 
     val values = findValues
 
-    lazy val reverse: Map[Int, PredefinedRequest[_ <: Response, _ <: Service]] = values.map(v => (v.pid, v)).toMap
+    lazy val reverse: Map[Int, ParameterRequest[_ <: Response, _ <: Service]] = values.map(v => (v.pid, v)).toMap
 }
 
 object ShowTroubleCodesRequest extends ServiceRequest(ShowTroubleCodes, DiagnosticTroubleCodeReader)
