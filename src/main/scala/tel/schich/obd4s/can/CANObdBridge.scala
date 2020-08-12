@@ -1,22 +1,23 @@
 package tel.schich.obd4s.can
 
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit.{MILLISECONDS, SECONDS}
 import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture}
+import java.util.concurrent.TimeUnit.{MILLISECONDS, SECONDS}
 
 import com.typesafe.scalalogging.StrictLogging
+import tel.schich.javacan._
 import tel.schich.javacan.IsotpCanChannel.MAX_MESSAGE_LENGTH
-import tel.schich.javacan.{CanChannels, NetworkDevice, IsotpAddress, IsotpCanChannel}
 import tel.schich.javacan.util.IsotpListener
+import tel.schich.javacan.IsotpOptions.Flag
+import tel.schich.obd4s._
 import tel.schich.obd4s.InternalCauses.ResponseTooShort
 import tel.schich.obd4s.ObdBridge.{getErrorCause, isMatchingResponse}
-import tel.schich.obd4s._
-import tel.schich.obd4s.obd.{ServiceId, PlainRequest, Reader}
+import tel.schich.obd4s.obd.{PlainRequest, Reader, ServiceId}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.duration.Duration
 
 object CANObdBridge {
     val EffPriority = 0x18
@@ -26,6 +27,7 @@ object CANObdBridge {
 class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: Int, timeout: Duration = Duration(1, SECONDS))(implicit ec: ExecutionContext) extends ObdBridge with StrictLogging {
 
     private val channel = CanChannels.newIsotpChannel(device, IsotpAddress.returnAddress(ecuAddress), ecuAddress)
+    channel.setOption(IsotpCanSocketOptions.OPTS, IsotpOptions.DEFAULT.withFlag(Flag.TX_PADDING))
     listener.addChannel(channel, this.handleResponse)
     private val writeBuffer = ByteBuffer.allocateDirect(MAX_MESSAGE_LENGTH + 1)
 
