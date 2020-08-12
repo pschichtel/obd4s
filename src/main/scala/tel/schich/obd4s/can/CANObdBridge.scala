@@ -48,7 +48,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
     override def executeRequest[A](service: ServiceId, pid: Int, reader: Reader[A]): Future[Result[A]] = {
         execAll(service, Seq(pid)).map { result =>
             result
-                .flatMap { buf => readPid(pid, reader, buf, service.length) }
+                .flatMap { buf => readParameter(pid, reader, buf, service.length) }
                 .map(_._1)
         }
     }
@@ -58,8 +58,8 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         execAll(service, Seq(a.pid, b.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, service.length)
-                    (br, _ ) <- readPid(b, buf, oa)
+                    (ar, oa) <- readParameter(a, buf, service.length)
+                    (br, _ ) <- readParameter(b, buf, oa)
                 } yield (ar, br)
             }
         }
@@ -69,9 +69,9 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         execAll(service, Seq(a.pid, b.pid, c.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, service.length)
-                    (br, ob) <- readPid(b, buf, oa)
-                    (cr, _ ) <- readPid(c, buf, ob)
+                    (ar, oa) <- readParameter(a, buf, service.length)
+                    (br, ob) <- readParameter(b, buf, oa)
+                    (cr, _ ) <- readParameter(c, buf, ob)
                 } yield (ar, br, cr)
             }
         }
@@ -81,10 +81,10 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         execAll(service, Seq(a.pid, b.pid, c.pid, d.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, service.length)
-                    (br, ob) <- readPid(b, buf, oa)
-                    (cr, oc) <- readPid(c, buf, ob)
-                    (dr, _ ) <- readPid(d, buf, oc)
+                    (ar, oa) <- readParameter(a, buf, service.length)
+                    (br, ob) <- readParameter(b, buf, oa)
+                    (cr, oc) <- readParameter(c, buf, ob)
+                    (dr, _ ) <- readParameter(d, buf, oc)
                 } yield (ar, br, cr, dr)
             }
         }
@@ -94,11 +94,11 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         execAll(service, Seq(a.pid, b.pid, c.pid, d.pid, e.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, service.length)
-                    (br, ob) <- readPid(b, buf, oa)
-                    (cr, oc) <- readPid(c, buf, ob)
-                    (dr, od) <- readPid(d, buf, oc)
-                    (er, _ ) <- readPid(e, buf, od)
+                    (ar, oa) <- readParameter(a, buf, service.length)
+                    (br, ob) <- readParameter(b, buf, oa)
+                    (cr, oc) <- readParameter(c, buf, ob)
+                    (dr, od) <- readParameter(d, buf, oc)
+                    (er, _ ) <- readParameter(e, buf, od)
                 } yield (ar, br, cr, dr, er)
             }
         }
@@ -108,12 +108,12 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         execAll(service, Seq(a.pid, b.pid, c.pid, d.pid, e.pid, f.pid)).map { result =>
             result.flatMap { buf =>
                 for {
-                    (ar, oa) <- readPid(a, buf, service.length)
-                    (br, ob) <- readPid(b, buf, oa)
-                    (cr, oc) <- readPid(c, buf, ob)
-                    (dr, od) <- readPid(d, buf, oc)
-                    (er, oe) <- readPid(e, buf, od)
-                    (fr, _ ) <- readPid(f, buf, oe)
+                    (ar, oa) <- readParameter(a, buf, service.length)
+                    (br, ob) <- readParameter(b, buf, oa)
+                    (cr, oc) <- readParameter(c, buf, ob)
+                    (dr, od) <- readParameter(d, buf, oc)
+                    (er, oe) <- readParameter(e, buf, od)
+                    (fr, _ ) <- readParameter(f, buf, oe)
                 } yield (ar, br, cr, dr, er, fr)
             }
         }
@@ -129,7 +129,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
                 result match {
                     case Ok(responses) =>
                         val r = reqs.head
-                        readPid(r, buf, offset) match {
+                        readParameter(r, buf, offset) match {
                             case Ok((response, byteRead)) =>
                                 parseResponse(buf, offset + byteRead, reqs.tail, Ok(responses :+ response))
                             case Error(reason) => Error(reason)
@@ -144,11 +144,11 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
         }
     }
 
-    private def readPid[A](req: PlainRequest[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
-        readPid(req.pid, req.reader, buf, offset)
+    private def readParameter[A](req: PlainRequest[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
+        readParameter(req.pid, req.reader, buf, offset)
     }
 
-    private def readPid[A](pid: Int, reader: Reader[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
+    private def readParameter[A](pid: Int, reader: Reader[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
         if (offset >= buf.length) Error(InternalCauses.ResponseTooShort)
         else if ((buf(offset) & 0xFF) != pid) Error(PidMismatch(pid, offset, buf))
         else reader.read(buf.view, offset + 1) map {
