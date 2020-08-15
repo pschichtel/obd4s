@@ -1,8 +1,5 @@
 package tel.schich.obd4s.obd
 
-import boopickle.Default._
-import boopickle.Pickler
-
 import scala.annotation.tailrec
 
 sealed trait Value
@@ -24,11 +21,4 @@ object Value {
             case EnumarableValue(w) => stringify(w)
         }
     }
-
-    implicit val pickler: Pickler[Value] = compositePickler[Value]
-        .addConcreteType[EnumarableValue]
-        .addConcreteType[IntegerValue]
-        .addConcreteType[FloatValue]
-        .addConcreteType[StringValue]
-        .addConcreteType[TruthValue]
 }

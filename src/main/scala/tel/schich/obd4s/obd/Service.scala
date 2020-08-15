@@ -1,24 +1,9 @@
 package tel.schich.obd4s.obd
 
-import boopickle.Default._
-import boopickle.{PickleState, PicklerHelper, UnpickleState}
 import enumeratum.{Enum, EnumEntry}
 
 class Service(val id: ServiceId)
 sealed abstract class StandardService(id: StandardServiceId) extends Service(id) with EnumEntry
-
-object Service extends PicklerHelper {
-    implicit val pickler: P[Service] = new P[Service] {
-        override def pickle(obj: Service)(implicit state: PickleState): Unit = {
-            write(obj.id.id)
-        }
-
-        override def unpickle(implicit state: UnpickleState): Service = {
-            val id = read[Int]
-            StandardModes.lookup.getOrElse(id, new Service(ProprietaryServiceId(id.toShort)))
-        }
-    }
-}
 
 object StandardModes extends Enum[StandardService] {
     case object CurrentData           extends StandardService(StandardServiceId(0x01.toByte))
