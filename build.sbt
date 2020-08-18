@@ -22,7 +22,7 @@ scalaVersion := "2.13.3"
 val blueCoveVersion = "2.1.0"
 
 libraryDependencies ++= Seq(
-    "tel.schich" % "javacan" % "2.2.0-SNAPSHOT" changing(),
+    "tel.schich" % "javacan" % "2.2.0",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2", // nice logging
     "com.beachape" %% "enumeratum" % "1.6.1", // nicer enums
     "net.sf.bluecove" % "bluecove" % blueCoveVersion,
