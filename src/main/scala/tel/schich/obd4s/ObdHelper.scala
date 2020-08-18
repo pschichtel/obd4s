@@ -77,7 +77,7 @@ object ObdHelper extends StrictLogging {
 
 
 
-    def detectSupport(bridge: ObdBridge, service: ServiceId = CurrentData.id)(implicit ec: ExecutionContext): Future[Result[Int => Boolean]] = {
+    def detectSupport(bridge: ObdBridge, service: ServiceId = CurrentData.id)(implicit ec: ExecutionContext): Future[Result[Vector[Boolean]]] = {
 
         def scanSupport(pid: Int, currentSet: Vector[Boolean]): Future[Result[Vector[Boolean]]] = {
             if (currentSet.nonEmpty && !currentSet.last) Future.successful(Ok(currentSet))
@@ -90,9 +90,7 @@ object ObdHelper extends StrictLogging {
             }
         }
 
-        scanSupport(CurrentDataRequests.Support01To20.pid, Vector(true)) map { result =>
-            result.map(support => support.applyOrElse(_: Int, (_: Int) => false))
-        }
+        scanSupport(CurrentDataRequests.Support01To20.pid, Vector(true))
     }
 
     def detectECUAddresses(device: NetworkDevice, threadFactory: ThreadFactory, provider: SelectorProvider, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
