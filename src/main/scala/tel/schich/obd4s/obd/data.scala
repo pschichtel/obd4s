@@ -182,7 +182,7 @@ case class OxygenSensorFuelVoltageTrim(voltage: Double, fuelTrim: Double) extend
 }
 case object OxygenSensorFuelVoltageReader extends TwoByteReader[OxygenSensorFuelVoltageTrim] {
 
-    case object OxygenSensorUnsupported extends SimpleCause("Oxygen sensor response signaled no support")
+    object OxygenSensorUnsupported extends SimpleCause("Oxygen sensor response signaled no support")
 
     override def read(a: Int, b: Int): Result[OxygenSensorFuelVoltageTrim] = {
         if (b == 255) Error(OxygenSensorUnsupported)
