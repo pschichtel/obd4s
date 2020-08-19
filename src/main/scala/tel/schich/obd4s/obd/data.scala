@@ -17,7 +17,7 @@ case class Temperature(temperature: Double) extends Response {
     override def values() = Map("temperature" -> FloatValue(temperature))
 }
 
-object TemperatureReader extends SingleByteReader[Temperature] {
+case object TemperatureReader extends SingleByteReader[Temperature] {
     override def read(a: Int): Result[Temperature] = Ok(Temperature(a - 40))
 }
 
@@ -25,7 +25,7 @@ case class RPM(rpm: Double) extends Response {
     override def values() = Map("rpm" -> FloatValue(rpm))
 }
 
-object RpmReader extends SingleShortReader[RPM] {
+case object RpmReader extends SingleShortReader[RPM] {
     override def read(ab: Int): Result[RPM] = Ok(RPM(ab / 4.0))
 }
 
@@ -54,7 +54,7 @@ class BitSetReader(n: Int, msbToLsb: Boolean, merger: (Boolean, Boolean) => Bool
         BitSet(left.set.zip(right.set).map(merger.tupled))
 }
 
-object PidSupportReader extends BitSetReader(4, true, _ || _)
+case object PidSupportReader extends BitSetReader(4, true, _ || _)
 
 case class FuelType(id: Int, name: String) extends Response {
     override def values(): Map[String, Value] = Map(
@@ -63,7 +63,7 @@ case class FuelType(id: Int, name: String) extends Response {
     )
 }
 
-object FuelTypeReader extends SingleByteReader[FuelType] {
+case object FuelTypeReader extends SingleByteReader[FuelType] {
 
     case class UnknownFuelType(id: Int) extends Cause {
         override def reason: String = s"Invalid fuel type id $id!"
@@ -108,7 +108,7 @@ case class EngineLoad(load: Double) extends Response {
     override def values(): Map[String, Value] = Map("load" -> FloatValue(load))
 }
 
-object EngineLoadReader extends SingleByteReader[EngineLoad] {
+case object EngineLoadReader extends SingleByteReader[EngineLoad] {
     override def read(a: Int): Result[EngineLoad] = {
         Ok(EngineLoad(a / 255.0))
     }
@@ -129,7 +129,7 @@ object FuelSystemStatus {
     case object OpenLoopSystemFailure extends Status(8)
     case object ClosedLoopFeedbackFault extends Status(16)
 }
-object FuelSystemStatusReader extends TwoByteReader[FuelSystemStatus] {
+case object FuelSystemStatusReader extends TwoByteReader[FuelSystemStatus] {
 
     case class FuelSystemUnavailable(response: Int) extends Cause {
         override def reason: String = s"Fuel system 1 returned an undefined response: $response"
@@ -158,7 +158,7 @@ object FuelSystemStatusReader extends TwoByteReader[FuelSystemStatus] {
 case class VehicleSpeed(speed: Int) extends Response {
     override def values(): Map[String, Value] = Map("speed" -> IntegerValue(speed))
 }
-object VehicleSpeedReader extends SingleByteReader[VehicleSpeed] {
+case object VehicleSpeedReader extends SingleByteReader[VehicleSpeed] {
     override def read(a: Int): Result[VehicleSpeed] = {
         Ok(VehicleSpeed(a))
     }
@@ -167,10 +167,10 @@ object VehicleSpeedReader extends SingleByteReader[VehicleSpeed] {
 case class RelativeValue(position: Double) extends Response {
     override def values(): Map[String, Value] = Map("value" -> FloatValue(position))
 }
-object SingleBytePercentageReader extends SingleByteReader[RelativeValue] {
+case object SingleBytePercentageReader extends SingleByteReader[RelativeValue] {
     override def read(a: Int): Result[RelativeValue] = Ok(RelativeValue(a / 255.0))
 }
-object SingleByteSignedPercentageReader extends SingleByteReader[RelativeValue] {
+case object SingleByteSignedPercentageReader extends SingleByteReader[RelativeValue] {
     override def read(a: Int): Result[RelativeValue] = Ok(RelativeValue((a * 2 / 255.0) - 1))
 }
 
@@ -180,9 +180,9 @@ case class OxygenSensorFuelVoltageTrim(voltage: Double, fuelTrim: Double) extend
         "fuel_trim" -> FloatValue(fuelTrim)
     )
 }
-object OxygenSensorFuelVoltageReader extends TwoByteReader[OxygenSensorFuelVoltageTrim] {
+case object OxygenSensorFuelVoltageReader extends TwoByteReader[OxygenSensorFuelVoltageTrim] {
 
-    object OxygenSensorUnsupported extends SimpleCause("Oxygen sensor response signaled no support")
+    case object OxygenSensorUnsupported extends SimpleCause("Oxygen sensor response signaled no support")
 
     override def read(a: Int, b: Int): Result[OxygenSensorFuelVoltageTrim] = {
         if (b == 255) Error(OxygenSensorUnsupported)
@@ -202,7 +202,7 @@ case class RuntimeReader(unit: TimeUnit) extends SingleShortReader[Duration] {
 case class TimingAdvance(advance: Double) extends Response {
     override def values(): Map[String, Value] = Map("advance" -> FloatValue(advance))
 }
-object TimingAdvanceReader extends SingleByteReader[TimingAdvance] {
+case object TimingAdvanceReader extends SingleByteReader[TimingAdvance] {
     override def read(a: Int): Result[TimingAdvance] = {
         Ok(TimingAdvance((a/2.0) - 40))
     }
@@ -214,7 +214,7 @@ case class OxygenSensorFuelAirVoltage(fuelAirEquivRatio: Double, voltage: Double
         "voltage"              -> FloatValue(voltage)
     )
 }
-object OxygenSensorFuelAirVoltageReader extends TwoShortReader[OxygenSensorFuelAirVoltage] {
+case object OxygenSensorFuelAirVoltageReader extends TwoShortReader[OxygenSensorFuelAirVoltage] {
     override def read(a: Int, b: Int): Result[OxygenSensorFuelAirVoltage] = {
         Ok(OxygenSensorFuelAirVoltage(FuelAirEquivalenceRatioReader.ratio(a), (8.0/65536.0) * b))
     }
@@ -225,7 +225,7 @@ case class OxygenSensorFuelAirCurrent(fuelAirEquivRatio: Double, current: Double
         "current"              -> FloatValue(current)
     )
 }
-object OxygenSensorFuelAirCurrentReader extends TwoShortReader[OxygenSensorFuelAirCurrent] {
+case object OxygenSensorFuelAirCurrentReader extends TwoShortReader[OxygenSensorFuelAirCurrent] {
     override def read(ab: Int, cd: Int): Result[OxygenSensorFuelAirCurrent] = {
         Ok(OxygenSensorFuelAirCurrent(FuelAirEquivalenceRatioReader.ratio(ab), Current.mA2A((cd/256.0) - 128)))
     }
@@ -235,7 +235,7 @@ object Current {
     def mA2A(n: Double): Double = n / 1000.0
 }
 
-object CatalystTemperatureReader extends SingleShortReader[Temperature] {
+case object CatalystTemperatureReader extends SingleShortReader[Temperature] {
     override def read(ab: Int): Result[Temperature] = {
         Ok(Temperature((ab/10.0) - 10))
     }
@@ -248,7 +248,7 @@ object Pressure {
     def fromKiloPa(pressure: Double): Pressure = Pressure(kPa2Pa(pressure))
     def kPa2Pa(n: Double): Double = n * 1000
 }
-object BarometricPressureReader extends SingleByteReader[Pressure] {
+case object BarometricPressureReader extends SingleByteReader[Pressure] {
     override def read(a: Int): Result[Pressure] = Ok(Pressure.fromKiloPa(a))
 }
 
@@ -268,13 +268,13 @@ object DistanceReader {
 case class Voltage(voltage: Double) extends Response {
     override def values(): Map[String, Value] = Map("voltage" -> FloatValue(voltage))
 }
-object ControlModuleVoltageReader extends TwoByteReader[Voltage] {
+case object ControlModuleVoltageReader extends TwoByteReader[Voltage] {
     override def read(a: Int, b: Int): Result[Voltage] = Ok(Voltage((256 * a + b)/1000.0))
 }
 case class FuelAirEquivalenceRatio(ratio: Double) extends Response {
     override def values(): Map[String, Value] = Map("ratio" -> FloatValue(ratio))
 }
-object FuelAirEquivalenceRatioReader extends SingleShortReader[FuelAirEquivalenceRatio] {
+case object FuelAirEquivalenceRatioReader extends SingleShortReader[FuelAirEquivalenceRatio] {
     def ratio(n: Int): Double = (2.0 / 65536.0) * n
 
     override def read(a: Int): Result[FuelAirEquivalenceRatio] =
@@ -284,7 +284,7 @@ object FuelAirEquivalenceRatioReader extends SingleShortReader[FuelAirEquivalenc
 case class FuelRate(rate: Double) extends Response {
     override def values(): Map[String, Value] = Map("rate" -> FloatValue(rate))
 }
-object FuelRateReader extends SingleShortReader[FuelRate] {
+case object FuelRateReader extends SingleShortReader[FuelRate] {
     override def read(a: Int): Result[FuelRate] = Ok(FuelRate(a / 20.0))
 }
 
@@ -294,7 +294,8 @@ case class SecondaryOxygenSensorTrim(trim: (Double, Double)) extends Response {
         "trim_b" -> FloatValue(trim._2)
     )
 }
-object SecondaryOxygenSensorTrimReader extends TwoByteReader[SecondaryOxygenSensorTrim] {
+
+case object SecondaryOxygenSensorTrimReader extends TwoByteReader[SecondaryOxygenSensorTrim] {
     def trim(n: Int): Double = ((100.0/128.0) * n) - 100
 
     override def read(a: Int, b: Int): Result[SecondaryOxygenSensorTrim] = {
@@ -302,35 +303,35 @@ object SecondaryOxygenSensorTrimReader extends TwoByteReader[SecondaryOxygenSens
     }
 }
 
-object FuelRailPressureReader extends SingleShortReader[Pressure] {
+case object FuelRailPressureReader extends SingleShortReader[Pressure] {
     override def read(a: Int): Result[Pressure] = Ok(Pressure.fromKiloPa(10 * a))
 }
 
-object FuelPressureReader extends SingleByteReader[Pressure] {
+case object FuelPressureReader extends SingleByteReader[Pressure] {
     override def read(a: Int): Result[Pressure] = Ok(Pressure.fromKiloPa(3 * a))
 }
 
-object IntakeManifoldPressureReader extends SingleByteReader[Pressure] {
+case object IntakeManifoldPressureReader extends SingleByteReader[Pressure] {
     override def read(a: Int): Result[Pressure] = Ok(Pressure.fromKiloPa(a))
 }
 
-object FuelRailPressureRelativeToManifoldReader extends SingleShortReader[Pressure] {
+case object FuelRailPressureRelativeToManifoldReader extends SingleShortReader[Pressure] {
     override def read(a: Int): Result[Pressure] = Ok(Pressure.fromKiloPa(0.079 * a))
 }
 
-object FuelRailGaugePressureReader extends SingleShortReader[Pressure] {
+case object FuelRailGaugePressureReader extends SingleShortReader[Pressure] {
     override def read(a: Int): Result[Pressure] = Ok(Pressure.fromKiloPa(10 * a))
 }
 
-object SystemVaporPressureReader extends SingleShortReader[Pressure] {
+case object SystemVaporPressureReader extends SingleShortReader[Pressure] {
     override def read(ab: Int): Result[Pressure] = Ok(Pressure(ab.toShort / 4.0))
 }
 
-object EvapSystemVaporPressureReader extends SingleShortReader[Pressure] {
+case object EvapSystemVaporPressureReader extends SingleShortReader[Pressure] {
     override def read(ab: Int): Result[Pressure] = Ok(Pressure(ab - 32767))
 }
 
-object AbsoluteEvapSystemVaporPressureReader extends SingleShortReader[Pressure] {
+case object AbsoluteEvapSystemVaporPressureReader extends SingleShortReader[Pressure] {
     override def read(ab: Int): Result[Pressure] = Ok(Pressure.fromKiloPa(ab / 200.0))
 }
 
@@ -338,7 +339,7 @@ case class InjectionTiming(timing: Double) extends Response {
     override def values(): Map[String, Value] = Map("timing" -> FloatValue(timing))
 }
 
-object FuelInjectionTimingReader extends SingleShortReader[InjectionTiming] {
+case object FuelInjectionTimingReader extends SingleShortReader[InjectionTiming] {
     override def read(ab: Int): Result[InjectionTiming] = Ok(InjectionTiming((ab/128.0) - 210))
 }
 
@@ -346,7 +347,7 @@ case class FuelTrim(trim: Double) extends Response {
     override def values(): Map[String, Value] = Map("trim" -> FloatValue(trim))
 }
 
-object FuelTrimReader extends SingleByteReader[FuelTrim] {
+case object FuelTrimReader extends SingleByteReader[FuelTrim] {
     override def read(a: Int): Result[FuelTrim] = Ok(FuelTrim((100.0/128.0) * a - 100))
 }
 
@@ -354,7 +355,7 @@ case class AirFlowRate(rate: Double) extends Response {
     override def values(): Map[String, Value] = Map("rate" -> FloatValue(rate))
 }
 
-object AirFlowRateReader extends SingleShortReader[AirFlowRate] {
+case object AirFlowRateReader extends SingleShortReader[AirFlowRate] {
     override def read(ab: Int): Result[AirFlowRate] = Ok(AirFlowRate(ab / 100.0))
 }
 
@@ -362,7 +363,7 @@ case class Count(count: Int) extends Response {
     override def values(): Map[String, Value] = Map("count" -> IntegerValue(count))
 }
 
-object CountReader extends SingleByteReader[Count] {
+case object CountReader extends SingleByteReader[Count] {
     override def read(a: Int): Result[Count] = Ok(Count(a))
 }
 
@@ -375,7 +376,7 @@ case class OxygenSensorMaxValues(fuelAirEquiv: Double, voltage: Double, current:
     )
 }
 
-object OxygenSensorMaxValuesReader extends FourByteReader[OxygenSensorMaxValues] {
+case object OxygenSensorMaxValuesReader extends FourByteReader[OxygenSensorMaxValues] {
     override def read(a: Int, b: Int, c: Int, d: Int): Result[OxygenSensorMaxValues] =
         Ok(OxygenSensorMaxValues(a, b, Current.mA2A(c), Pressure.kPa2Pa(d * 10)))
 }
@@ -384,7 +385,7 @@ case class MaximumValue(max: Double) extends Response {
     override def values(): Map[String, Value] = Map("max" -> FloatValue(max))
 }
 
-object MaximumAirFlowRateReader extends FourByteReader[MaximumValue] {
+case object MaximumAirFlowRateReader extends FourByteReader[MaximumValue] {
     override def read(a: Int, b: Int, c: Int, d: Int): Result[MaximumValue] = Ok(MaximumValue(a * 10))
 }
 
@@ -392,7 +393,7 @@ case class Torque(torque: Double) extends Response {
     override def values(): Map[String, Value] = Map("torque" -> FloatValue(torque))
 }
 
-object TorqueReader extends SingleShortReader[Torque] {
+case object TorqueReader extends SingleShortReader[Torque] {
     override def read(ab: Int): Result[Torque] = Ok(Torque(ab))
 }
 
@@ -406,20 +407,20 @@ case class EngineTorqueData(idle: Double, point1: Double, point2: Double, point3
     )
 }
 
-object EngineTorqueDataReader extends FiveByteReader[EngineTorqueData] {
+case object EngineTorqueDataReader extends FiveByteReader[EngineTorqueData] {
     override def read(a: Int, b: Int, c: Int, d: Int, e: Int): Result[EngineTorqueData] =
         Ok(EngineTorqueData(a / 255.0, b / 255.0, c / 255.0, d / 255.0, e / 255.0))
 }
 
-object ByteReader extends SingleByteReader[Int] {
+case object ByteReader extends SingleByteReader[Int] {
     override def read(a: Int): Result[Int] = Ok(a)
 }
 
-object ShortReader extends SingleShortReader[Int] {
+case object ShortReader extends SingleShortReader[Int] {
     override def read(a: Int): Result[Int] = Ok(a)
 }
 
-object IntReader extends SingleIntReader[Int] {
+case object IntReader extends SingleIntReader[Int] {
     override def read(a: Int): Result[Int] = Ok(a)
 }
 
@@ -448,7 +449,7 @@ case class StringReader(charset: Charset, length: Int = -1, trimControlChars: Bo
     }
 }
 
-object DiagnosticTroubleCodeReader extends Reader[Seq[DiagnosticTroubleCode]] {
+case object DiagnosticTroubleCodeReader extends Reader[Seq[DiagnosticTroubleCode]] {
     override def read(buf: BufferView, offset: Int): Result[(Seq[DiagnosticTroubleCode], Int)] = {
         val elemCount = (offset - buf.length) / 2
         val codes = (0 until (elemCount / 2)).map { i =>
@@ -458,6 +459,6 @@ object DiagnosticTroubleCodeReader extends Reader[Seq[DiagnosticTroubleCode]] {
     }
 }
 
-object UnitReader extends Reader[Unit] {
+case object UnitReader extends Reader[Unit] {
     override def read(buf: UnitReader.BufferView, offset: Int): Result[(Unit, Int)] = Ok(((), 0))
 }

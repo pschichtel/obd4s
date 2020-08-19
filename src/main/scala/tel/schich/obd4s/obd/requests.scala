@@ -112,9 +112,9 @@ object CurrentDataRequests extends Enum[PredefinedRequest[_ <: Response, Current
     lazy val reverse: Map[Int, ParameterRequest[_ <: Response, _ <: Service]] = values.map(v => (v.pid, v)).toMap
 }
 
-object ShowTroubleCodesRequest extends ServiceRequest(ShowTroubleCodes, DiagnosticTroubleCodeReader)
-object ClearTroubleCodeRequest extends ServiceRequest(ClearTroubleCodes, UnitReader)
-object PendingTroubleCodesRequest extends ServiceRequest(PendingTroubleCodes, DiagnosticTroubleCodeReader)
+case object ShowTroubleCodesRequest extends ServiceRequest(ShowTroubleCodes, DiagnosticTroubleCodeReader)
+case object ClearTroubleCodeRequest extends ServiceRequest(ClearTroubleCodes, UnitReader)
+case object PendingTroubleCodesRequest extends ServiceRequest(PendingTroubleCodes, DiagnosticTroubleCodeReader)
 
 object VehicleInfoRequests extends Enum[PredefinedRequest[_, VehicleInfo.type]] {
     case object Support01To20         extends PredefinedRequest(VehicleInfo, 0x00, PidSupportReader)
@@ -126,4 +126,4 @@ object VehicleInfoRequests extends Enum[PredefinedRequest[_, VehicleInfo.type]] 
     override val values = findValues
 }
 
-object PermanentTroubleCodesRequest extends ServiceRequest(PermanentTroubleCodes, DiagnosticTroubleCodeReader)
+case object PermanentTroubleCodesRequest extends ServiceRequest(PermanentTroubleCodes, DiagnosticTroubleCodeReader)
