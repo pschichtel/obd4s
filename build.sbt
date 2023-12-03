@@ -8,6 +8,7 @@ scmInfo := Some(ScmInfo(url("https://github.com/pschichtel/obd4s"), "git@github.
 developers := List(Developer("pschichtel", "Phillip Schichtel", "phillip@schich.tel", url("https://schich.tel")))
 licenses += ("MIT", url("https://raw.githubusercontent.com/pschichtel/obd4s/master/LICENSE"))
 
+versionScheme := Some("semver-spec")
 resolvers += Resolver.mavenLocal
 publishMavenStyle := true
 publishTo := Some(
