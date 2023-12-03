@@ -4,28 +4,29 @@ import java.nio.ByteBuffer
 import java.nio.channels.spi.SelectorProvider
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.ThreadFactory
-
 import com.typesafe.scalalogging.StrictLogging
-import tel.schich.javacan.CanFrame.FD_NO_FLAGS
-import tel.schich.javacan.IsotpAddress._
-import tel.schich.javacan._
 import tel.schich.javacan.util.CanBroker
+import tel.schich.javacan.{CanFilter, CanFrame, CanId, IsotpAddress, NetworkDevice}
+import tel.schich.javacan.platform.linux.UnixFileDescriptor
+import tel.schich.javacan.select.IOSelector
+import tel.schich.javacan.IsotpAddress.{effAddress, returnAddress}
 import tel.schich.obd4s.can.CANObdBridge.{EffPriority, EffTestEquipmentAddress}
-import tel.schich.obd4s.obd.CurrentDataRequests.Support01To20
-import tel.schich.obd4s.obd.StandardModes.CurrentData
-import tel.schich.obd4s.obd.{CurrentDataRequests, ServiceId, PidSupportReader}
+import tel.schich.obd4s.elm.ElmCommands.CANReceiveFilter
+import tel.schich.obd4s.obd.CurrentDataRequest.Support01To20
+import tel.schich.obd4s.obd.StandardMode.CurrentData
+import tel.schich.obd4s.obd.{CurrentDataRequest, PidSupportReader, ServiceId}
 
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ExecutionContext, Future, blocking}
+import scala.concurrent.{blocking, ExecutionContext, Future}
 
 object ObdHelper extends StrictLogging {
-    val EffFunctionalFilter = new CanFilter(effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, 0, EffTestEquipmentAddress), EFF_MASK_FUNCTIONAL_RESPONSE)
+    val EffFunctionalFilter = new CanFilter(effAddress(EffPriority, IsotpAddress.EFF_TYPE_FUNCTIONAL_ADDRESSING, 0, EffTestEquipmentAddress), IsotpAddress.EFF_MASK_FUNCTIONAL_RESPONSE)
 
-    val EffFunctionalAddress: Int = effAddress(EffPriority, EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, DESTINATION_EFF_FUNCTIONAL)
+    val EffFunctionalAddress: Int = effAddress(EffPriority, IsotpAddress.EFF_TYPE_FUNCTIONAL_ADDRESSING, EffTestEquipmentAddress, IsotpAddress.DESTINATION_EFF_FUNCTIONAL)
     val EcuDetectionMessage: Array[Byte] = isotpSingleFrame(CurrentData.id.bytes ++ Support01To20.bytes)
-    val SffEcuDetectionFrame: CanFrame = CanFrame.create(SFF_FUNCTIONAL_ADDRESS, FD_NO_FLAGS, EcuDetectionMessage)
-    val EffEcuDetectionFrame: CanFrame = CanFrame.createExtended(EffFunctionalAddress, FD_NO_FLAGS, EcuDetectionMessage)
+    val SffEcuDetectionFrame: CanFrame = CanFrame.create(IsotpAddress.SFF_FUNCTIONAL_ADDRESS, CanFrame.FD_NO_FLAGS, EcuDetectionMessage)
+    val EffEcuDetectionFrame: CanFrame = CanFrame.createExtended(EffFunctionalAddress, CanFrame.FD_NO_FLAGS, EcuDetectionMessage)
 
     def hexDump(bytes: Iterable[Byte]): String = {
         bytes.map(b => (b & 0xFF).toHexString.toUpperCase.reverse.padTo(2, '0').reverse).mkString(".")
@@ -69,10 +70,10 @@ object ObdHelper extends StrictLogging {
     def checkResponse(requestSid: Byte, data: ByteBuffer): Result[Array[Byte]] =
         // there must be at least the response code, otherwise this is very weird.
         if (ObdBridge.isMatchingResponse(requestSid, data)) Ok(getMessage(data))
-        else if (ObdBridge.isPositiveResponse(data)) Error(InternalCauses.WrongSid)
+        else if (ObdBridge.isPositiveResponse(data)) Error(InternalCause.WrongSid)
         else ObdBridge.getErrorCause(data) match {
             case Some(cause) => Error(cause)
-            case _ => Error(InternalCauses.UnknownResponse)
+            case _ => Error(InternalCause.UnknownResponse)
         }
 
 
@@ -90,13 +91,13 @@ object ObdHelper extends StrictLogging {
             }
         }
 
-        scanSupport(CurrentDataRequests.Support01To20.pid, Vector(true))
+        scanSupport(CurrentDataRequest.Support01To20.pid, Vector(true))
     }
 
-    def detectECUAddresses(device: NetworkDevice, threadFactory: ThreadFactory, provider: SelectorProvider, timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
+    def detectECUAddresses(device: NetworkDevice, threadFactory: ThreadFactory, provider: IOSelector[UnixFileDescriptor], timeout: Duration)(implicit ec: ExecutionContext): Future[Set[Int]] = Future {
         val addresses = mutable.Set[Int]()
         val broker = new CanBroker(threadFactory, provider, java.time.Duration.of(timeout.toMillis, ChronoUnit.MILLIS))
-        broker.addFilter(SFF_FUNCTIONAL_FILTER)
+        broker.addFilter(IsotpAddress.SFF_FUNCTIONAL_FILTER)
         broker.addFilter(EffFunctionalFilter)
 
         broker.addDevice(device, (_, frame) => {

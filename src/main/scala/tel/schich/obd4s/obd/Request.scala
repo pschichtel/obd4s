@@ -1,8 +1,6 @@
 package tel.schich.obd4s.obd
 
-import enumeratum.EnumEntry
-
-abstract class Request[T, S <: Service](val service: S, val reader: Reader[T]) extends EnumEntry {
+abstract class Request[T, S <: Service](val service: S, val reader: Reader[T]) {
     lazy val name: String = getClass.getSimpleName.replace("$", "")
 }
 

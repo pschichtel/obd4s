@@ -1,4 +1,4 @@
-import ReleaseTransformations._
+import ReleaseTransformations.*
 
 name := "obd4s"
 organization := "tel.schich"
@@ -12,23 +12,24 @@ resolvers += Resolver.mavenLocal
 publishMavenStyle := true
 publishTo := Some(
     if (isSnapshot.value)
-        Opts.resolver.sonatypeSnapshots
+        Opts.resolver.sonatypeOssSnapshots.head
     else
         Opts.resolver.sonatypeStaging
 )
 
-scalaVersion := "2.13.3"
+scalaVersion := "3.3.1"
 
 val blueCoveVersion = "2.1.0"
+val javacanVersion = "3.2.5"
 
 libraryDependencies ++= Seq(
-    "tel.schich" % "javacan" % "2.3.0",
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2", // nice logging
-    "com.beachape" %% "enumeratum" % "1.6.1", // nicer enums
+    "tel.schich" % "javacan-core" % javacanVersion,
+    "tel.schich" % "javacan-epoll" % javacanVersion,
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5", // nice logging
     "net.sf.bluecove" % "bluecove" % blueCoveVersion,
     "net.sf.bluecove" % "bluecove-gpl" % blueCoveVersion,
-    "io.github.java-native" % "jssc" % "2.9.2",
-    "org.scalacheck" %% "scalacheck" % "1.14.1" % "test"
+    "io.github.java-native" % "jssc" % "2.9.4",
+    "org.scalacheck" %% "scalacheck" % "1.17.0" % "test"
 )
 
 scalacOptions ++= Seq("-unchecked", "-deprecation")

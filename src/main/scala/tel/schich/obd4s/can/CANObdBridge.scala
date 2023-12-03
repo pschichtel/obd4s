@@ -10,7 +10,7 @@ import tel.schich.javacan.IsotpCanChannel.MAX_MESSAGE_LENGTH
 import tel.schich.javacan.util.IsotpListener
 import tel.schich.javacan.IsotpOptions.Flag
 import tel.schich.obd4s._
-import tel.schich.obd4s.InternalCauses.ResponseTooShort
+import tel.schich.obd4s.InternalCause.ResponseTooShort
 import tel.schich.obd4s.ObdBridge.{getErrorCause, isMatchingResponse}
 import tel.schich.obd4s.obd.{PlainRequest, Reader, ServiceId}
 
@@ -149,7 +149,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
     }
 
     private def readParameter[A](pid: Int, reader: Reader[A], buf: Array[Byte], offset: Int): Result[(A, Int)] = {
-        if (offset >= buf.length) Error(InternalCauses.ResponseTooShort)
+        if (offset >= buf.length) Error(InternalCause.ResponseTooShort)
         else if ((buf(offset) & 0xFF) != pid) Error(PidMismatch(pid, offset, buf))
         else reader.read(buf.view, offset + 1) map {
             case (result, bytesRead) => (result, bytesRead + 1)
@@ -224,7 +224,7 @@ class CANObdBridge(device: NetworkDevice, listener: IsotpListener, ecuAddress: I
     }
 
     private def timeoutInflightRequest(): Unit = synchronized {
-        consume().promise.success(Error(InternalCauses.Timeout))
+        consume().promise.success(Error(InternalCause.Timeout))
     }
 
     private case class PendingRequest(sid: Byte, msg: Array[Byte], promise: Promise[Result[Array[Byte]]])

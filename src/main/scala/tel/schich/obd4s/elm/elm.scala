@@ -4,7 +4,7 @@ import java.io.InputStream
 import java.nio.charset.StandardCharsets.US_ASCII
 
 import com.typesafe.scalalogging.StrictLogging
-import tel.schich.obd4s.InternalCauses.{ResponseTooShort, UnknownResponse}
+import tel.schich.obd4s.InternalCause.{ResponseTooShort, UnknownResponse}
 import tel.schich.obd4s._
 import tel.schich.obd4s.elm.ElmCommands.CANReceiveFilter
 import tel.schich.obd4s.obd.{ServiceId, PlainRequest, Reader}
@@ -65,9 +65,9 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         val responsePrefix = obdRequest(expectedResponseMode, pid)
 
         lines.map(_.toLowerCase) match {
-            case Vector() => Error(ElmCauses.NoResponse)
-            case Vector("?") => Error(ElmCauses.UnknownOrInvalidCommand)
-            case Vector("no data") => Error(ElmCauses.NoData)
+            case Vector() => Error(ElmCause.NoResponse)
+            case Vector("?") => Error(ElmCause.UnknownOrInvalidCommand)
+            case Vector("no data") => Error(ElmCause.NoData)
             case _ if lines.forall(_.length >= 2) =>
                 Ok(lines.map(l => ("", l)))
             case _ => Error(UnknownResponse)
@@ -116,10 +116,12 @@ class ELMObdBridge(transport: ElmTransport, executionContext: ExecutionContext) 
         val parsedResponses = parseElmResponse(rawResponse, service, parameter)
 
         val result = parsedResponses.flatMap {
-            case Vector((header, payload)) =>
+            case Vector((_, payload), _*) =>
                 parseObdResponse(payload).flatMap {
                     case (_, _, data) => reader.read(data, 0).map(_._1)
                 }
+
+            case _ => Error(InternalCause.ReadError)
         }
 
         Future.successful(result)

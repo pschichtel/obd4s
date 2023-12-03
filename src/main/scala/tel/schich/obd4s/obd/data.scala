@@ -4,7 +4,7 @@ import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit.SECONDS
 
 import com.typesafe.scalalogging.StrictLogging
-import tel.schich.obd4s.InternalCauses.{ReadError, ResponseTooShort}
+import tel.schich.obd4s.InternalCause.{ReadError, ResponseTooShort}
 import tel.schich.obd4s._
 import tel.schich.obd4s.obd.DistanceReader.DistanceUnit
 import tel.schich.obd4s.obd.FuelSystemStatus.Unavailable
@@ -14,7 +14,7 @@ import scala.concurrent.duration.TimeUnit
 import scala.util.control.NonFatal
 
 case class Temperature(temperature: Double) extends Response {
-    override def values() = Map("temperature" -> FloatValue(temperature))
+    override def values(): Map[String, FloatValue] = Map("temperature" -> FloatValue(temperature))
 }
 
 case object TemperatureReader extends SingleByteReader[Temperature] {
@@ -22,7 +22,7 @@ case object TemperatureReader extends SingleByteReader[Temperature] {
 }
 
 case class RPM(rpm: Double) extends Response {
-    override def values() = Map("rpm" -> FloatValue(rpm))
+    override def values(): Map[String, FloatValue] = Map("rpm" -> FloatValue(rpm))
 }
 
 case object RpmReader extends SingleShortReader[RPM] {
@@ -69,7 +69,7 @@ case object FuelTypeReader extends SingleByteReader[FuelType] {
         override def reason: String = s"Invalid fuel type id $id!"
     }
 
-    val KnownFuels = Map(
+    val KnownFuels: Map[Int, String] = Map(
         0x01 -> "Gasoline",
         0x02 -> "Methanol",
         0x03 -> "Ethanol",

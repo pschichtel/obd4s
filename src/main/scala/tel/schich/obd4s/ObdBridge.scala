@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 
 import com.typesafe.scalalogging.StrictLogging
 import tel.schich.javacan.CanFrame.MAX_DATA_LENGTH
-import tel.schich.obd4s.obd.ObdCauses.NegativeResponseCode
+import tel.schich.obd4s.obd.ObdCause.NegativeResponseCode
 import tel.schich.obd4s.obd._
 
 import scala.concurrent.Future
@@ -26,7 +26,7 @@ object ObdBridge {
 
     def getErrorCause(data: ByteBuffer): Option[Cause] =
         if (!ObdBridge.isErrorResponse(data) || data.remaining() < 2) None
-        else Some(ObdCauses.lookupByCode.getOrElse(data.get(data.position() + 1), InternalCauses.UnknownCause))
+        else Some(ObdCause.lookupByCode.getOrElse(data.get(data.position() + 1), InternalCause.UnknownCause))
 }
 
 trait ObdBridge extends StrictLogging {

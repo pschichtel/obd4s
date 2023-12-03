@@ -28,7 +28,7 @@ final case class Ok[T](result: T) extends Result[T] {
     override def map[A](f: T => A): Result[A] = Ok(f(result))
     override def flatMap[A](f: T => Result[A]): Result[A] = f(result)
     override def foreach[U](f: T => U): Unit = f(result)
-    override def filter(p: T => Boolean): Result[T] = if (p(result)) Ok(result) else Error(InternalCauses.FilteredAway)
+    override def filter(p: T => Boolean): Result[T] = if (p(result)) Ok(result) else Error(InternalCause.FilteredAway)
     override def getOrElse[A >: T](alt: => A): A = result
 }
 

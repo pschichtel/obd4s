@@ -1,6 +1,6 @@
 package tel.schich.obd4s.obd
 
-import tel.schich.obd4s.{Error, InternalCauses, Result}
+import tel.schich.obd4s.{Error, InternalCause, Result}
 
 import scala.collection.IndexedSeqView
 
@@ -15,7 +15,7 @@ trait Reader[T] {
 abstract class FixedLengthReader[T](val length: Int) extends Reader[T] {
 
     final override def read(buf: BufferView, offset: Int): Result[(T, Int)] = {
-        if ((buf.length - offset) < length) Error(InternalCauses.ResponseTooShort)
+        if ((buf.length - offset) < length) Error(InternalCause.ResponseTooShort)
         else read(buf.view.slice(offset, offset + length)).map(r => (r, length))
     }
 
