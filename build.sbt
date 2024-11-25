@@ -21,7 +21,7 @@ publishTo := Some(
 scalaVersion := "3.3.1"
 
 val blueCoveVersion = "2.1.0"
-val javacanVersion = "3.3.2"
+val javacanVersion = "3.5.0"
 
 libraryDependencies ++= Seq(
     "tel.schich" % "javacan-core" % javacanVersion,
