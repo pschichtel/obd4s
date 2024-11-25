@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
     "net.sf.bluecove" % "bluecove" % blueCoveVersion,
     "net.sf.bluecove" % "bluecove-gpl" % blueCoveVersion,
     "io.github.java-native" % "jssc" % "2.9.4",
-    "org.scalacheck" %% "scalacheck" % "1.17.0" % "test"
+    "org.scalacheck" %% "scalacheck" % "1.18.1" % "test"
 )
 
 scalacOptions ++= Seq("-unchecked", "-deprecation")
