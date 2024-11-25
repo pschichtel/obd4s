@@ -18,7 +18,7 @@ publishTo := Some(
         Opts.resolver.sonatypeStaging
 )
 
-scalaVersion := "3.3.1"
+scalaVersion := "3.6.1"
 
 val blueCoveVersion = "2.1.0"
 val javacanVersion = "3.3.2"
