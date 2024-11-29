@@ -29,7 +29,7 @@ libraryDependencies ++= Seq(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5", // nice logging
     "net.sf.bluecove" % "bluecove" % blueCoveVersion,
     "net.sf.bluecove" % "bluecove-gpl" % blueCoveVersion,
-    "io.github.java-native" % "jssc" % "2.9.4",
+    "io.github.java-native" % "jssc" % "2.9.6",
     "org.scalacheck" %% "scalacheck" % "1.18.1" % "test"
 )
 
